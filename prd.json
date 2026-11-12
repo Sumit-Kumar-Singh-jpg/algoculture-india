@@ -1,0 +1,164 @@
+{
+  "project": "PulseTrade India",
+  "branchName": "ralph/indian-trading-terminal",
+  "description": "Indian stock market (NSE/BSE) analytics webapp with Intraday, F&O, and Long-Term charts, AI price prediction charts, and Moneycontrol-sourced stock news.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Project Monorepo & Health Scaffold",
+      "description": "As a developer, I want a clean Next.js (TypeScript/Tailwind) frontend and Python FastAPI backend scaffolded in the repository so both services run reliably together.",
+      "acceptanceCriteria": [
+        "backend/ FastAPI app starts via uvicorn and exposes GET /api/health returning {\"status\": \"ok\"}",
+        "frontend/ Next.js App Router (TypeScript + Tailwind CSS) builds cleanly with npm run build",
+        "CORS configured between localhost:3000 and localhost:8000",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "NSE/BSE Stock Search & Live Quote API",
+      "description": "As a user, I want to search any NSE/BSE stock or index and fetch its live price quote so I can switch stocks effortlessly.",
+      "acceptanceCriteria": [
+        "GET /api/stocks/search?q=<query> returns matching NSE/BSE symbols, names, exchange, and is_fno flag",
+        "GET /api/stocks/{symbol}/quote returns LTP, delta, OHLC, volume, 52W range, market status, and cache timestamp",
+        "Backend uses TTL caching and gracefully falls back to cached data on upstream throttling",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Terminal Shell, Stock Search Bar & Live Quote Header UI",
+      "description": "As a trader, I want a dark-mode terminal header with instant stock search and an auto-refreshing live quote bar so I always see real-time context for my selected stock.",
+      "acceptanceCriteria": [
+        "Debounced search dropdown with keyboard navigation and quick-pick chips for NIFTY 50, BANKNIFTY, RELIANCE, TCS, HDFCBANK",
+        "Live Quote Bar displays LTP in INR, green/red change, day range, volume, market status badge, and polls every 10s",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Multi-Horizon OHLCV & Technical Indicators API",
+      "description": "As a trader, I want historical and intraday OHLCV candle data with pre-computed indicators so Intraday and Long-Term charts render fast and accurately.",
+      "acceptanceCriteria": [
+        "GET /api/stocks/{symbol}/history supports mode=intraday|longterm with intervals 1m,5m,15m,1h and ranges 3mo,6mo,1y,3y,5y,max",
+        "Returns OHLCV candles plus VWAP, EMA9, EMA21, SMA50, SMA200, and RSI14",
+        "Handles market holidays/weekends cleanly by returning latest session data with session date label",
+        "Tests pass"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Intraday & Long-Term Interactive Charts UI",
+      "description": "As a trader, I want separate Intraday and Long-Term chart tabs using TradingView Lightweight Charts so I can analyze short-term momentum and multi-year trends.",
+      "acceptanceCriteria": [
+        "Mode tabs switch cleanly between Intraday, F&O, and Long-Term",
+        "Intraday tab supports 1m/5m/15m/1h intervals and toggleable VWAP, EMA 9/21, Volume, and RSI(14)",
+        "Long-Term tab supports 3M/6M/1Y/3Y/5Y/MAX ranges and toggleable 50 DMA, 200 DMA, and 52W High/Low lines",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "NSE F&O Option Chain & Derivatives Analytics API",
+      "description": "As an F&O trader, I want live/cached NSE option chain data with PCR, Max Pain, and ATM IV for F&O-eligible stocks and indices.",
+      "acceptanceCriteria": [
+        "GET /api/stocks/{symbol}/fno fetches NSE public option chain with session priming and 45s TTL cache",
+        "Computes PCR, Max Pain strike, Call OI resistance, Put OI support, and ATM IV across expiries",
+        "Non-F&O stocks return structured fno_eligible=false response cleanly",
+        "Tests pass"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "F&O Chart & Option Chain Analytics UI",
+      "description": "As an F&O trader, I want an F&O tab displaying the underlying price chart alongside strike-wise Call/Put OI bars, PCR, Max Pain, and expiry selector.",
+      "acceptanceCriteria": [
+        "F&O tab renders Spot, PCR, Max Pain, Call Resistance, Put Support, and ATM IV metric cards",
+        "Renders strike-wise Call OI vs Put OI bar chart around ATM and an Option Chain table with expiry selector",
+        "Non-F&O stocks display a clear explanatory notice",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "AI Price Prediction Engine & Backtest API",
+      "description": "As a trader, I want a backend forecasting API that generates horizon-specific AI price predictions and walk-forward backtest accuracy scores for any stock.",
+      "acceptanceCriteria": [
+        "GET /api/stocks/{symbol}/predict?mode=intraday|fno|longterm returns predicted series with upper/lower 1sigma and 2sigma bands",
+        "Computes walk-forward directional accuracy %, MAPE %, and RMSE on held-out historical candles",
+        "Confidence bands satisfy lower_2sigma <= lower_1sigma <= predicted <= upper_1sigma <= upper_2sigma",
+        "Tests pass"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "AI Prediction Chart Overlay & Metrics UI",
+      "description": "As a trader, I want to see the AI Prediction Chart overlaid onto (or compared alongside) my Intraday, F&O, and Long-Term charts so I can visualize expected direction and risk bands.",
+      "acceptanceCriteria": [
+        "Toggleable AI Prediction overlay renders dashed forecast line and shaded 1sigma/2sigma confidence bands on the chart",
+        "Summary bar displays target price, expected % move, Directional Accuracy %, MAPE, and non-advisory disclaimer",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Moneycontrol & Multi-Source Stock News Aggregator API",
+      "description": "As an investor/trader, I want a backend news API that fetches both current and historical news for the selected stock from Moneycontrol, Economic Times, LiveMint, and Google News RSS.",
+      "acceptanceCriteria": [
+        "GET /api/stocks/{symbol}/news aggregates and deduplicates articles from Moneycontrol, ET, LiveMint, and Google News RSS",
+        "Supports timeframe (today, 7d, 30d, all) and source filters with 5m TTL cache",
+        "Assigns Bullish, Bearish, or Neutral financial sentiment score to each headline",
+        "Tests pass"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Stock News Feed Panel UI",
+      "description": "As a trader, I want a clean News Section right below or beside the charts showing current and historical news for the selected stock with source, timeframe, and sentiment filters.",
+      "acceptanceCriteria": [
+        "News panel displays headline, source badge, timestamp, sentiment pill, and external article link",
+        "Timeframe (Today, 7D, 30D, Historical) and Source (All, Moneycontrol, ET, LiveMint) filters work",
+        "Switching stock reloads news cleanly with loading state",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

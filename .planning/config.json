@@ -1,0 +1,47 @@
+{
+  "mode": "interactive",
+  "granularity": "standard",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true,
+    "auto_advance": false,
+    "nyquist_validation": true,
+    "security_enforcement": true,
+    "security_asvs_level": 1,
+    "security_block_on": "high",
+    "discuss_mode": "discuss",
+    "research_before_questions": false,
+    "code_review_command": "coderabbit review --agent",
+    "plan_bounce": false,
+    "cross_ai_execution": false
+  },
+  "planning": {
+    "commit_docs": true,
+    "search_gitignored": false,
+    "sub_repos": []
+  },
+  "git": {
+    "create_tag": true
+  },
+  "parallelization": {
+    "enabled": true,
+    "plan_level": true,
+    "task_level": false,
+    "max_concurrent_agents": 3
+  },
+  "gates": {
+    "confirm_project": true,
+    "confirm_phases": true,
+    "confirm_roadmap": true,
+    "confirm_breakdown": true,
+    "confirm_plan": true,
+    "execute_next_plan": true,
+    "confirm_transition": true
+  },
+  "safety": {
+    "always_confirm_destructive": true,
+    "always_confirm_external_services": true
+  },
+  "project_code": "PTI"
+}
