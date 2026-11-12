@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** Select any Indian stock and immediately inspect its Intraday, F&O, and Long-Term charts alongside an AI prediction forecast and Moneycontrol-sourced stock news in one clean terminal.
-**Current focus:** Phase 4 — Moneycontrol & Multi-Source News Engine
+**Current focus:** All v1 Phases Complete (Phase 1–4 shipped & verified)
 
 ## Current Position
 
-Phase: 4 of 4 (Moneycontrol & Multi-Source News Engine)
-Plan: 1 of 2 in current phase
-Status: In progress — Phase 3 complete (AI prediction engine, confidence cone, backtest metrics, and forecast overlay); building Phase 4 News Aggregator and News Event Pins
-Last activity: 2026-11-12 — Shipped Phase 3 (`AIP-01`, `AIP-02`, `AIP-03`) with passing tests & build
+Phase: 4 of 4 (Complete)
+Plan: 2 of 2 in Phase 4
+Status: Shipped — All 15 requirements implemented, 14 backend unit tests passing, Next.js production build verified, git commits clean
+Last activity: 2026-11-12 — Shipped Phase 4 (`NWS-01`, `NWS-02`, `NWS-03`, `OPT-01`) with passing tests & build
 
-Progress: [████████░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
