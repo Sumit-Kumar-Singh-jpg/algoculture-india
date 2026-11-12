@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 import numpy as np
 import pandas as pd
+import yfinance as yf
 
 from app.config import (
     HISTORY_TTL_SECONDS,
@@ -42,7 +43,40 @@ INTERVAL_MAPPING = {
 
 
 def _fetch_yahoo_ohlcv(yahoo_symbol: str, interval: str, period_range: str) -> dict[str, Any]:
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    # 1. First attempt: standard official yfinance client (handles cookies, crumbs, and anti-429 rotation)
+    try:
+        ticker = yf.Ticker(yahoo_symbol)
+        df_yf = ticker.history(period=period_range, interval=interval)
+        if not df_yf.empty and len(df_yf) >= 5:
+            timestamps = [int(ts.timestamp()) for ts in df_yf.index]
+            opens = df_yf["Open"].tolist()
+            highs = df_yf["High"].tolist()
+            lows = df_yf["Low"].tolist()
+            closes = df_yf["Close"].tolist()
+            volumes = df_yf["Volume"].tolist()
+            return {
+                "timestamp": timestamps,
+                "indicators": {
+                    "quote": [
+                        {
+                            "open": opens,
+                            "high": highs,
+                            "low": lows,
+                            "close": closes,
+                            "volume": volumes,
+                        }
+                    ]
+                },
+            }
+    except Exception:
+        pass
+
+    # 2. Second attempt: direct HTTP query
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+        "Referer": "https://finance.yahoo.com",
+    }
     params = {"interval": interval, "range": period_range, "includePrePost": "false"}
     with httpx.Client(timeout=10.0, headers=headers, follow_redirects=True) as client:
         resp = client.get(YAHOO_CHART_URL.format(symbol=yahoo_symbol), params=params)
