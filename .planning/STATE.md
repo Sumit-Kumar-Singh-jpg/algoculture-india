@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** Select any Indian stock and immediately inspect its Intraday, F&O, and Long-Term charts alongside an AI prediction forecast and Moneycontrol-sourced stock news in one clean terminal.
-**Current focus:** Phase 3 — AI Prediction Engine & Forecast Charts
+**Current focus:** Phase 4 — Moneycontrol & Multi-Source News Engine
 
 ## Current Position
 
-Phase: 3 of 4 (AI Prediction Engine & Forecast Charts)
+Phase: 4 of 4 (Moneycontrol & Multi-Source News Engine)
 Plan: 1 of 2 in current phase
-Status: In progress — Phase 2 complete (Intraday, Long-Term, F&O derivatives, and Technical Bias Strip); building Phase 3 AI forecasts
-Last activity: 2026-11-12 — Shipped Phase 2 (`CHT-01`, `CHT-02`, `CHT-03`, `OPT-02`) with passing tests & build
+Status: In progress — Phase 3 complete (AI prediction engine, confidence cone, backtest metrics, and forecast overlay); building Phase 4 News Aggregator and News Event Pins
+Last activity: 2026-11-12 — Shipped Phase 3 (`AIP-01`, `AIP-02`, `AIP-03`) with passing tests & build
 
-Progress: [██████░░░░] 50%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 

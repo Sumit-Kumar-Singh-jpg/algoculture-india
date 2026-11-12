@@ -86,4 +86,21 @@ export function fetchStockPrediction(
   );
 }
 
+export function fetchStockNews(
+  symbol: string,
+  timeframe?: string,
+  source?: string,
+  signal?: AbortSignal
+): Promise<import("./types").StockNewsResponse> {
+  const params = new URLSearchParams();
+  if (timeframe) params.set("timeframe", timeframe);
+  if (source) params.set("source", source);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<import("./types").StockNewsResponse>(
+    `/api/stocks/${encodeURIComponent(symbol)}/news${q}`,
+    signal
+  );
+}
+
+
 

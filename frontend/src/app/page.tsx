@@ -6,6 +6,7 @@ import {
   fetchFnoAnalytics,
   fetchMarketPulse,
   fetchStockHistory,
+  fetchStockNews,
   fetchStockPrediction,
   fetchStockQuote,
 } from "@/lib/api";
@@ -13,6 +14,7 @@ import type {
   FnoAnalyticsResponse,
   MarketPulseResponse,
   StockHistoryResponse,
+  StockNewsResponse,
   StockPredictionResponse,
   StockQuote,
   StockSearchItem,
@@ -27,6 +29,7 @@ import { TechnicalBiasStrip } from "@/components/TechnicalBiasStrip";
 import { StockChartCanvas } from "@/components/StockChartCanvas";
 import { FnoDerivativesPanel } from "@/components/FnoDerivativesPanel";
 import { AiPredictionCard } from "@/components/AiPredictionCard";
+import { StockNewsPanel } from "@/components/StockNewsPanel";
 
 const DEFAULT_WATCHLIST: WatchlistEntry[] = [
   { symbol: "NIFTY", name: "NIFTY 50 Index", exchange: "NSE" },
@@ -65,6 +68,12 @@ export default function HomePage() {
   const [prediction, setPrediction] = useState<StockPredictionResponse | null>(null);
   const [isPredictionLoading, setIsPredictionLoading] = useState(false);
   const [isPredictionOverlayActive, setIsPredictionOverlayActive] = useState(true);
+
+  // Phase 4 News state
+  const [news, setNews] = useState<StockNewsResponse | null>(null);
+  const [isNewsLoading, setIsNewsLoading] = useState(false);
+  const [newsTimeframe, setNewsTimeframe] = useState("all");
+  const [newsSourceFilter, setNewsSourceFilter] = useState("all");
 
   // Load watchlist from localStorage
   useEffect(() => {
@@ -160,10 +169,30 @@ export default function HomePage() {
     }
   }, []);
 
+  const loadNews = useCallback(
+    async (symbol: string, timeframe: string, source: string) => {
+      setIsNewsLoading(true);
+      try {
+        const data = await fetchStockNews(symbol, timeframe, source);
+        setNews(data);
+      } catch {
+        // Retain previous or null
+      } finally {
+        setIsNewsLoading(false);
+      }
+    },
+    []
+  );
+
   // Sync Prediction on symbol or mode change
   useEffect(() => {
     loadPrediction(activeSymbol, activeMode);
   }, [activeSymbol, activeMode, loadPrediction]);
+
+  // Sync News on symbol, timeframe, or source change
+  useEffect(() => {
+    loadNews(activeSymbol, newsTimeframe, newsSourceFilter);
+  }, [activeSymbol, newsTimeframe, newsSourceFilter, loadNews]);
 
   // Sync History on symbol / mode / timeframe change
   useEffect(() => {
@@ -457,6 +486,15 @@ export default function HomePage() {
                       }))
                     : null
                 }
+                newsEvents={
+                  news?.articles
+                    ? news.articles.map((a) => ({
+                        time: a.time_sec,
+                        title: a.title,
+                        sentiment: a.sentiment,
+                      }))
+                    : null
+                }
               />
             )}
           </div>
@@ -472,17 +510,14 @@ export default function HomePage() {
               }
             />
 
-            <div className="flex-1 rounded-xl border border-slate-800/80 bg-[#0e1525] p-5">
-              <div className="flex items-center gap-2 pb-3 text-sm font-semibold text-slate-200">
-                <Newspaper className="h-4 w-4 text-sky-400" />
-                <span>Moneycontrol Stock News</span>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-400">
-                <p className="text-[11px] text-slate-400">
-                  Aggregating current & historical articles for {activeSymbol} with Bullish/Bearish sentiment tagging in Phase 4.
-                </p>
-              </div>
-            </div>
+            <StockNewsPanel
+              news={news}
+              timeframe={newsTimeframe}
+              sourceFilter={newsSourceFilter}
+              onSelectTimeframe={setNewsTimeframe}
+              onSelectSource={setNewsSourceFilter}
+              isLoading={isNewsLoading}
+            />
           </div>
         </div>
 

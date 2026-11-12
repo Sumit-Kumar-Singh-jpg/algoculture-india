@@ -23,6 +23,7 @@ interface StockChartCanvasProps {
   showVolume: boolean;
   showRsi: boolean;
   aiPredictionData?: Array<{ time: number; price: number; lower1?: number; upper1?: number }> | null;
+  newsEvents?: Array<{ time: number; title: string; sentiment: string }> | null;
 }
 
 export function StockChartCanvas({
@@ -34,6 +35,7 @@ export function StockChartCanvas({
   showVolume,
   showRsi,
   aiPredictionData,
+  newsEvents,
 }: StockChartCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -213,6 +215,28 @@ export function StockChartCanvas({
       );
     }
 
+    // 7. News Event Pins on Long-Term Chart (OPT-01)
+    if (newsEvents && newsEvents.length > 0 && mode === "longterm") {
+      const markers = newsEvents
+        .filter((ev) => candles.some((c) => Math.abs(c.time - ev.time) <= 86400 * 2))
+        .map((ev) => {
+          // Find closest candle time
+          const closest = candles.reduce((prev, curr) =>
+            Math.abs(curr.time - ev.time) < Math.abs(prev.time - ev.time) ? curr : prev
+          );
+          return {
+            time: closest.time as Time,
+            position: "aboveBar" as const,
+            color: ev.sentiment === "BULLISH" ? "#10b981" : ev.sentiment === "BEARISH" ? "#f43f5e" : "#38bdf8",
+            shape: "circle" as const,
+            text: "News",
+          };
+        });
+      if (markers.length > 0) {
+        candleSeries.setMarkers(markers);
+      }
+    }
+
     // Crosshair move listener for legend
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData.get(candleSeries)) {
@@ -254,7 +278,7 @@ export function StockChartCanvas({
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [candles, mode, showVwap, showEma, showDma, showVolume, aiPredictionData]);
+  }, [candles, mode, showVwap, showEma, showDma, showVolume, aiPredictionData, newsEvents]);
 
   return (
     <div className="relative w-full">

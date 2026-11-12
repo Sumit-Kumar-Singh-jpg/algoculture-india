@@ -165,3 +165,29 @@ class StockPredictionResponse(BaseModel):
     stale: bool = False
 
 
+class NewsArticleItem(BaseModel):
+    id: str
+    title: str
+    url: str
+    source: str  # Moneycontrol | Economic Times | LiveMint | Google News
+    published_at: str
+    published_iso: str
+    time_sec: int
+    summary: str
+    sentiment: str  # BULLISH | BEARISH | NEUTRAL
+    sentiment_score: float  # -1.0 to 1.0
+
+
+class StockNewsResponse(BaseModel):
+    symbol: str
+    name: str
+    timeframe: str
+    source_filter: str
+    total_articles: int
+    sentiment_breakdown: dict[str, int]
+    articles: list[NewsArticleItem]
+    as_of: str
+    stale: bool = False
+
+
+

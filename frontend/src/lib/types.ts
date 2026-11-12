@@ -164,4 +164,30 @@ export interface StockPredictionResponse {
   stale: boolean;
 }
 
+export interface NewsArticleItem {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  published_at: string;
+  published_iso: string;
+  time_sec: number;
+  summary: string;
+  sentiment: "BULLISH" | "BEARISH" | "NEUTRAL" | string;
+  sentiment_score: number;
+}
+
+export interface StockNewsResponse {
+  symbol: string;
+  name: string;
+  timeframe: string;
+  source_filter: string;
+  total_articles: number;
+  sentiment_breakdown: Record<string, number>;
+  articles: NewsArticleItem[];
+  as_of: string;
+  stale: boolean;
+}
+
+
 

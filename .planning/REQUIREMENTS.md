@@ -50,8 +50,8 @@
 |-------------|-------|--------|
 | MKT-01, MKT-02, MKT-03, OPT-03, OPT-04 | Phase 1: Foundation & Live Market Data | Complete |
 | CHT-01, CHT-02, CHT-03, OPT-02 | Phase 2: Intraday, F&O & Long-Term Charts | Complete |
-| AIP-01, AIP-02, AIP-03 | Phase 3: AI Prediction Engine & Forecast Charts | In Progress |
-| NWS-01, NWS-02, NWS-03, OPT-01 | Phase 4: Moneycontrol & Multi-Source News Engine | Pending |
+| AIP-01, AIP-02, AIP-03 | Phase 3: AI Prediction Engine & Forecast Charts | Complete |
+| NWS-01, NWS-02, NWS-03, OPT-01 | Phase 4: Moneycontrol & Multi-Source News Engine | In Progress |
 
 **Coverage:**
 - v1 requirements: 15 total

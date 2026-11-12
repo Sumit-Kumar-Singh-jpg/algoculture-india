@@ -116,8 +116,8 @@
         "Tests pass"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Verified with test_predict_endpoint"
     },
     {
       "id": "US-009",
@@ -130,8 +130,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Verified with Next.js build"
     },
     {
       "id": "US-010",

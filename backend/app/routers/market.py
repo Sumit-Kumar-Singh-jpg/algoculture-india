@@ -8,12 +8,14 @@ from app.models import (
     HealthResponse,
     MarketPulseResponse,
     StockHistoryResponse,
+    StockNewsResponse,
     StockPredictionResponse,
     StockQuoteResponse,
     StockSearchResponse,
 )
 from app.services.fno_service import get_fno_analytics
 from app.services.history_service import get_stock_history
+from app.services.news_service import get_stock_news
 from app.services.prediction_service import get_stock_prediction
 from app.services.market_data import (
     get_market_pulse,
@@ -108,5 +110,21 @@ def stock_predict(
             status_code=502,
             detail=f"Unable to generate AI prediction for {symbol}: {exc}",
         ) from exc
+
+
+@router.get("/stocks/{symbol}/news", response_model=StockNewsResponse)
+def stock_news(
+    symbol: str,
+    timeframe: str = Query(default="all"),
+    source: str = Query(default="all"),
+) -> StockNewsResponse:
+    try:
+        return get_stock_news(symbol, timeframe=timeframe, source_filter=source)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Unable to fetch stock news for {symbol}: {exc}",
+        ) from exc
+
 
 
