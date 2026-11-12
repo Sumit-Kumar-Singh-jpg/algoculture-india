@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** Select any Indian stock and immediately inspect its Intraday, F&O, and Long-Term charts alongside an AI prediction forecast and Moneycontrol-sourced stock news in one clean terminal.
-**Current focus:** Phase 2 — Intraday, F&O & Long-Term Charts
+**Current focus:** Phase 3 — AI Prediction Engine & Forecast Charts
 
 ## Current Position
 
-Phase: 2 of 4 (Intraday, F&O & Long-Term Charts)
-Plan: 1 of 3 in current phase
-Status: In progress — Phase 1 verified and committed; advancing to Phase 2
-Last activity: 2026-11-12 — Shipped Phase 1 (`MKT-01`, `MKT-02`, `MKT-03`, `OPT-03`, `OPT-04`) with passing tests & build
+Phase: 3 of 4 (AI Prediction Engine & Forecast Charts)
+Plan: 1 of 2 in current phase
+Status: In progress — Phase 2 complete (Intraday, Long-Term, F&O derivatives, and Technical Bias Strip); building Phase 3 AI forecasts
+Last activity: 2026-11-12 — Shipped Phase 2 (`CHT-01`, `CHT-02`, `CHT-03`, `OPT-02`) with passing tests & build
 
-Progress: [███░░░░░░░] 25%
+Progress: [██████░░░░] 50%
 
 ## Performance Metrics
 

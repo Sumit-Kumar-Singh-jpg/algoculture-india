@@ -258,3 +258,5 @@ def get_stock_history(
         as_of=cached_at,
         stale=stale,
     )
+def clear_history_cache() -> None:
+    _history_cache.clear()

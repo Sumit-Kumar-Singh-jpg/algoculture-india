@@ -131,3 +131,37 @@ export interface FnoAnalyticsResponse {
   stale: boolean;
 }
 
+export interface ForecastPoint {
+  time: number;
+  time_iso: string;
+  predicted: number;
+  lower_1sigma: number;
+  upper_1sigma: number;
+  lower_2sigma: number;
+  upper_2sigma: number;
+}
+
+export interface BacktestMetrics {
+  directional_accuracy_pct: number;
+  mape_pct: number;
+  rmse: number;
+  tested_candles: number;
+  model_name: string;
+}
+
+export interface StockPredictionResponse {
+  symbol: string;
+  yahoo_symbol: string;
+  mode: string;
+  current_price: number;
+  forecast_target: number;
+  expected_change_pct: number;
+  projected_direction: "BULLISH" | "BEARISH" | "NEUTRAL" | string;
+  disclaimer: string;
+  metrics: BacktestMetrics;
+  forecast: ForecastPoint[];
+  as_of: string;
+  stale: boolean;
+}
+
+

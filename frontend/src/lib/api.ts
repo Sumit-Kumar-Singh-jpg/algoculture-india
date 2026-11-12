@@ -74,3 +74,16 @@ export function fetchFnoAnalytics(
   );
 }
 
+export function fetchStockPrediction(
+  symbol: string,
+  mode: "intraday" | "fno" | "longterm",
+  signal?: AbortSignal
+): Promise<import("./types").StockPredictionResponse> {
+  const params = new URLSearchParams({ mode });
+  return fetchJson<import("./types").StockPredictionResponse>(
+    `/api/stocks/${encodeURIComponent(symbol)}/predict?${params.toString()}`,
+    signal
+  );
+}
+
+

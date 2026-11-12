@@ -131,3 +131,37 @@ class FnoAnalyticsResponse(BaseModel):
     as_of: str
     stale: bool = False
 
+
+class ForecastPoint(BaseModel):
+    time: int
+    time_iso: str
+    predicted: float
+    lower_1sigma: float
+    upper_1sigma: float
+    lower_2sigma: float
+    upper_2sigma: float
+
+
+class BacktestMetrics(BaseModel):
+    directional_accuracy_pct: float
+    mape_pct: float
+    rmse: float
+    tested_candles: int
+    model_name: str
+
+
+class StockPredictionResponse(BaseModel):
+    symbol: str
+    yahoo_symbol: str
+    mode: str
+    current_price: float
+    forecast_target: float
+    expected_change_pct: float
+    projected_direction: str  # BULLISH | BEARISH | NEUTRAL
+    disclaimer: str
+    metrics: BacktestMetrics
+    forecast: list[ForecastPoint]
+    as_of: str
+    stale: bool = False
+
+

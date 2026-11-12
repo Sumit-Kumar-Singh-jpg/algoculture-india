@@ -2,11 +2,18 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { TrendingUp, ShieldAlert, Sparkles, Newspaper } from "lucide-react";
-import { fetchFnoAnalytics, fetchMarketPulse, fetchStockHistory, fetchStockQuote } from "@/lib/api";
+import {
+  fetchFnoAnalytics,
+  fetchMarketPulse,
+  fetchStockHistory,
+  fetchStockPrediction,
+  fetchStockQuote,
+} from "@/lib/api";
 import type {
   FnoAnalyticsResponse,
   MarketPulseResponse,
   StockHistoryResponse,
+  StockPredictionResponse,
   StockQuote,
   StockSearchItem,
   TradingMode,
@@ -19,6 +26,7 @@ import { LiveQuoteHeader } from "@/components/LiveQuoteHeader";
 import { TechnicalBiasStrip } from "@/components/TechnicalBiasStrip";
 import { StockChartCanvas } from "@/components/StockChartCanvas";
 import { FnoDerivativesPanel } from "@/components/FnoDerivativesPanel";
+import { AiPredictionCard } from "@/components/AiPredictionCard";
 
 const DEFAULT_WATCHLIST: WatchlistEntry[] = [
   { symbol: "NIFTY", name: "NIFTY 50 Index", exchange: "NSE" },
@@ -52,6 +60,11 @@ export default function HomePage() {
   const [fno, setFno] = useState<FnoAnalyticsResponse | null>(null);
   const [isFnoLoading, setIsFnoLoading] = useState(false);
   const [selectedExpiry, setSelectedExpiry] = useState<string>("");
+
+  // Phase 3 AI Prediction state
+  const [prediction, setPrediction] = useState<StockPredictionResponse | null>(null);
+  const [isPredictionLoading, setIsPredictionLoading] = useState(false);
+  const [isPredictionOverlayActive, setIsPredictionOverlayActive] = useState(true);
 
   // Load watchlist from localStorage
   useEffect(() => {
@@ -134,6 +147,23 @@ export default function HomePage() {
       setIsFnoLoading(false);
     }
   }, []);
+
+  const loadPrediction = useCallback(async (symbol: string, mode: TradingMode) => {
+    setIsPredictionLoading(true);
+    try {
+      const data = await fetchStockPrediction(symbol, mode);
+      setPrediction(data);
+    } catch {
+      // Retain or null
+    } finally {
+      setIsPredictionLoading(false);
+    }
+  }, []);
+
+  // Sync Prediction on symbol or mode change
+  useEffect(() => {
+    loadPrediction(activeSymbol, activeMode);
+  }, [activeSymbol, activeMode, loadPrediction]);
 
   // Sync History on symbol / mode / timeframe change
   useEffect(() => {
@@ -417,26 +447,30 @@ export default function HomePage() {
                 showDma={showDma}
                 showVolume={showVolume}
                 showRsi={showRsi}
+                aiPredictionData={
+                  isPredictionOverlayActive && prediction?.forecast
+                    ? prediction.forecast.map((f) => ({
+                        time: f.time,
+                        price: f.predicted,
+                        lower1: f.lower_1sigma,
+                        upper1: f.upper_1sigma,
+                      }))
+                    : null
+                }
               />
             )}
           </div>
 
-          {/* News & AI Overview Stage */}
+          {/* Right Rail: AI Forecast & Stock News */}
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-slate-800/80 bg-[#0e1525] p-5">
-              <div className="flex items-center gap-2 pb-3 text-sm font-semibold text-slate-200">
-                <Sparkles className="h-4 w-4 text-amber-400" />
-                <span>AI Prediction Engine</span>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-400">
-                <p className="font-medium text-slate-300">
-                  Horizon Forecast: {activeMode.toUpperCase()}
-                </p>
-                <p className="pt-1 text-[11px] text-slate-400">
-                  Statistical ridge/gradient-boosted trajectory with 1σ/2σ confidence bands and backtest metrics.
-                </p>
-              </div>
-            </div>
+            <AiPredictionCard
+              prediction={prediction}
+              isLoading={isPredictionLoading}
+              isActive={isPredictionOverlayActive}
+              onToggleActive={() =>
+                setIsPredictionOverlayActive(!isPredictionOverlayActive)
+              }
+            />
 
             <div className="flex-1 rounded-xl border border-slate-800/80 bg-[#0e1525] p-5">
               <div className="flex items-center gap-2 pb-3 text-sm font-semibold text-slate-200">

@@ -8,11 +8,13 @@ from app.models import (
     HealthResponse,
     MarketPulseResponse,
     StockHistoryResponse,
+    StockPredictionResponse,
     StockQuoteResponse,
     StockSearchResponse,
 )
 from app.services.fno_service import get_fno_analytics
 from app.services.history_service import get_stock_history
+from app.services.prediction_service import get_stock_prediction
 from app.services.market_data import (
     get_market_pulse,
     get_stock_quote,
@@ -90,4 +92,21 @@ def stock_fno(
             status_code=502,
             detail=f"Unable to fetch F&O derivatives for {symbol}: {exc}",
         ) from exc
+
+
+@router.get("/stocks/{symbol}/predict", response_model=StockPredictionResponse)
+def stock_predict(
+    symbol: str,
+    mode: str = Query(default="intraday"),
+) -> StockPredictionResponse:
+    try:
+        return get_stock_prediction(symbol, mode=mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Unable to generate AI prediction for {symbol}: {exc}",
+        ) from exc
+
 

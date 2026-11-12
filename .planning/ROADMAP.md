@@ -82,6 +82,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Live Market Data | 3/3 | Complete | 2026-11-12 |
-| 2. Intraday, F&O & Long-Term Charts | 0/3 | In Progress | - |
-| 3. AI Prediction Engine & Forecast Charts | 0/2 | Not started | - |
+| 2. Intraday, F&O & Long-Term Charts | 3/3 | Complete | 2026-11-12 |
+| 3. AI Prediction Engine & Forecast Charts | 0/2 | In Progress | - |
 | 4. Moneycontrol & Multi-Source News Engine | 0/2 | Not started | - |
