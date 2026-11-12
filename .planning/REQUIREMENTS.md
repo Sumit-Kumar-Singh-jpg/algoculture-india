@@ -29,12 +29,12 @@
 - [ ] **NWS-02**: Users can filter news by timeframe (Today, 7 Days, 30 Days, Historical) and source (All, Moneycontrol, ET, LiveMint, Others), and open original articles in a new tab.
 - [ ] **NWS-03**: Each news item includes a lightweight sentiment badge (Bullish / Bearish / Neutral) computed via headline/summary polarity scoring.
 
-## Suggested Optional Enhancements (v1.1 — Pending User Approval)
+### Active Scope Additions (Approved)
 
-- **OPT-01**: **News Event Pins on Historical Chart** — Plot major news headlines directly on Long-Term candlesticks so users can correlate price spikes/drops with news dates.
-- **OPT-02**: **Quick Technical & F&O Bias Strip** — Compact Bullish/Neutral/Bearish gauge summarizing RSI, MACD, Supertrend, VWAP, and PCR at a glance.
-- **OPT-03**: **Local Watchlist Sidebar** — Save favorite NSE stocks and indices (`NIFTY 50`, `BANKNIFTY`, `RELIANCE`, `TCS`, etc.) in browser `localStorage` for 1-click switching.
-- **OPT-04**: **Market Pulse Top Ticker** — Live strip showing `NIFTY 50`, `SENSEX`, `BANKNIFTY`, and `INDIA VIX`.
+- [ ] **OPT-01**: **News Event Pins on Long-Term Chart** — Plot major news headlines directly on Long-Term candlesticks so users can correlate price spikes/drops with news dates.
+- [ ] **OPT-02**: **Quick Technical & F&O Bias Strip** — Compact Bullish/Neutral/Bearish gauge summarizing RSI, MACD/EMA, VWAP, 50/200 DMA, and PCR at a glance.
+- [ ] **OPT-03**: **Local Watchlist Sidebar/Strip** — Save favorite NSE stocks and indices (`NIFTY 50`, `BANKNIFTY`, `RELIANCE`, `TCS`, etc.) in browser `localStorage` for 1-click switching.
+- [ ] **OPT-04**: **Market Pulse Top Ticker** — Live strip showing `NIFTY 50`, `SENSEX`, `BANKNIFTY`, and `INDIA VIX`.
 
 ## Out of Scope
 
@@ -48,14 +48,14 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MKT-01, MKT-02, MKT-03 | Phase 1: Foundation & Live Market Data | Pending |
-| CHT-01, CHT-02, CHT-03 | Phase 2: Intraday, F&O & Long-Term Charts | Pending |
+| MKT-01, MKT-02, MKT-03, OPT-03, OPT-04 | Phase 1: Foundation & Live Market Data | In Progress |
+| CHT-01, CHT-02, CHT-03, OPT-02 | Phase 2: Intraday, F&O & Long-Term Charts | Pending |
 | AIP-01, AIP-02, AIP-03 | Phase 3: AI Prediction Engine & Forecast Charts | Pending |
-| NWS-01, NWS-02, NWS-03 | Phase 4: Moneycontrol & Multi-Source News Engine | Pending |
+| NWS-01, NWS-02, NWS-03, OPT-01 | Phase 4: Moneycontrol & Multi-Source News Engine | Pending |
 
 **Coverage:**
-- v1 requirements: 11 total
-- Mapped to phases: 11
+- v1 requirements: 15 total
+- Mapped to phases: 15
 - Unmapped: 0
 
 ---

@@ -14,9 +14,9 @@ PulseTrade India will be built in four focused phases—starting with the Next.j
 ## Phase Details
 
 ### Phase 1: Foundation & Live Market Data
-**Goal**: Users can search any NSE/BSE stock or index and see a live-polled quote header backed by a cached FastAPI service.
+**Goal**: Users can search any NSE/BSE stock or index and see a live-polled quote header, Market Pulse top ticker (`NIFTY 50`, `SENSEX`, `BANKNIFTY`, `INDIA VIX`), and 1-click Local Watchlist backed by a cached FastAPI service.
 **Depends on**: Nothing (first phase)
-**Requirements**: MKT-01, MKT-02, MKT-03
+**Requirements**: MKT-01, MKT-02, MKT-03, OPT-03, OPT-04
 **Success Criteria** (what must be TRUE):
   1. FastAPI `/api/health`, `/api/stocks/search?q=...`, and `/api/stocks/{symbol}/quote` return live NSE/BSE stock data with TTL caching and graceful fallback.
   2. Next.js dark-theme terminal shell loads with a debounced stock search bar supporting NSE/BSE equities and indices (`NIFTY 50`, `BANKNIFTY`).
@@ -32,12 +32,13 @@ Plans:
 ### Phase 2: Intraday, F&O & Long-Term Charts
 **Goal**: Users can switch seamlessly between Intraday, F&O, and Long-Term tabs for the selected stock and inspect interactive charts and derivatives data.
 **Depends on**: Phase 1
-**Requirements**: CHT-01, CHT-02, CHT-03
+**Requirements**: CHT-01, CHT-02, CHT-03, OPT-02
 **Success Criteria** (what must be TRUE):
   1. Intraday tab renders `1m`/`5m`/`15m`/`1h` candlesticks with Volume, VWAP, EMA 9/21, and RSI(14).
   2. F&O tab renders underlying price chart plus Call/Put OI bar chart by strike, Expiry selector, PCR, Max Pain, and ATM IV (or clear non-F&O message).
   3. Long-Term tab renders `3M`/`6M`/`1Y`/`3Y`/`5Y`/`MAX` candlesticks with 50 DMA, 200 DMA, and 52W High/Low markers.
-  4. CodeRabbit CLI review passes with zero critical/major findings.
+  4. Quick Technical & F&O Bias Strip displays Bullish/Neutral/Bearish gauge above the chart.
+  5. CodeRabbit CLI review passes with zero critical/major findings.
 **Plans**: 3 plans
 
 Plans:
@@ -63,12 +64,13 @@ Plans:
 ### Phase 4: Moneycontrol & Multi-Source News Engine
 **Goal**: Users can read current and historical stock-specific news from Moneycontrol and Indian financial feeds with timeframe, source, and sentiment filters.
 **Depends on**: Phase 1
-**Requirements**: NWS-01, NWS-02, NWS-03
+**Requirements**: NWS-01, NWS-02, NWS-03, OPT-01
 **Success Criteria** (what must be TRUE):
   1. Backend aggregates and deduplicates stock-specific current and historical articles from Moneycontrol, Economic Times, LiveMint, and Google News RSS.
   2. News items carry source badges, relative/absolute timestamps, and Bullish/Bearish/Neutral sentiment tags.
   3. News panel supports filtering by timeframe (Today, 7D, 30D, Historical) and source, and opens full articles externally.
-  4. Full end-to-end verification and final CodeRabbit CLI review pass cleanly.
+  4. News Event Pins plot major news dates on the Long-Term chart so users can correlate price moves with headlines.
+  5. Full end-to-end verification and final CodeRabbit CLI review pass cleanly.
 **Plans**: 2 plans
 
 Plans:

@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** Select any Indian stock and immediately inspect its Intraday, F&O, and Long-Term charts alongside an AI prediction forecast and Moneycontrol-sourced stock news in one clean terminal.
-**Current focus:** Phase 1 — Foundation & Live Market Data (awaiting user approval of plan & optional enhancements)
+**Current focus:** Phase 1 — Foundation & Live Market Data (in progress)
 
 ## Current Position
 
 Phase: 1 of 4 (Foundation & Live Market Data)
-Plan: 0 of 3 in current phase
-Status: Ready to plan / awaiting user confirmation on scope & optional features
-Last activity: 2026-11-12 — Initialized GSD planning files and Ralph PRD (`tasks/prd-indian-trading-terminal.md`, `prd.json`)
+Plan: 1 of 3 in current phase
+Status: In progress — Building Phase 1 (scaffold, stock search, quote API, Market Pulse & Local Watchlist)
+Last activity: 2026-11-12 — Approved OPT-01..OPT-04 and started Phase 1 implementation
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -30,17 +30,19 @@ Progress: [░░░░░░░░░░] 0%
 - [Init]: Market scope set to Indian Markets (NSE/BSE) using free public sources (Yahoo Finance, NSE public endpoints, Moneycontrol/ET/LiveMint RSS) with zero paid API keys.
 - [Init]: UI scoped strictly to Intraday / F&O / Long-Term charts, AI prediction charts, and stock news (no broker/order execution UI).
 - [Init]: Tech stack set to Next.js (TypeScript, Tailwind, `lightweight-charts`) + Python FastAPI (`yfinance`, `pandas`, `scikit-learn`, `feedparser`, `beautifulsoup4`, `httpx`).
+- [Scope]: User approved all 4 optional enhancements (`OPT-01` News Event Pins, `OPT-02` Technical/F&O Bias Strip, `OPT-03` Local Watchlist, `OPT-04` Market Pulse Top Ticker).
 
 ### Pending Todos
 
-- Confirm with user whether to fold any suggested enhancements (News Event Pins, Technical/F&O Bias Strip, Local Watchlist, Market Pulse Ticker) into Phase 2–4 or defer to v1.1.
+- Complete Phase 1 implementation and verify via tests + CodeRabbit review.
 
 ### Blockers/Concerns
 
 - NSE public option-chain endpoint requires session cookie priming and rate-limit caching to avoid HTTP 403/429 responses.
+- Node.js/npm is not yet installed in the sandboxed environment; will need Node.js + Python packages installed to build and run the full stack.
 
 ## Session Continuity
 
-Last session: 2026-11-12 16:55
-Stopped at: Created GSD `.planning/` artifacts and Ralph `tasks/prd-indian-trading-terminal.md` + `prd.json`
+Last session: 2026-11-12 17:00
+Stopped at: Updated planning docs with OPT-01..OPT-04 and beginning Phase 1 implementation
 Resume file: None

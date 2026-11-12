@@ -33,10 +33,11 @@
     },
     {
       "id": "US-003",
-      "title": "Terminal Shell, Stock Search Bar & Live Quote Header UI",
-      "description": "As a trader, I want a dark-mode terminal header with instant stock search and an auto-refreshing live quote bar so I always see real-time context for my selected stock.",
+      "title": "Terminal Shell, Stock Search Bar, Market Pulse & Watchlist UI",
+      "description": "As a trader, I want a dark-mode terminal header with instant stock search, Market Pulse top ticker, 1-click Local Watchlist, and an auto-refreshing live quote bar.",
       "acceptanceCriteria": [
-        "Debounced search dropdown with keyboard navigation and quick-pick chips for NIFTY 50, BANKNIFTY, RELIANCE, TCS, HDFCBANK",
+        "Market Pulse top bar displays live NIFTY 50, SENSEX, BANKNIFTY, and INDIA VIX",
+        "Debounced search dropdown with keyboard navigation and 1-click Local Watchlist (localStorage) for favorite NSE stocks/indices",
         "Live Quote Bar displays LTP in INR, green/red change, day range, volume, market status badge, and polls every 10s",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
@@ -61,10 +62,11 @@
     },
     {
       "id": "US-005",
-      "title": "Intraday & Long-Term Interactive Charts UI",
-      "description": "As a trader, I want separate Intraday and Long-Term chart tabs using TradingView Lightweight Charts so I can analyze short-term momentum and multi-year trends.",
+      "title": "Intraday, Long-Term Charts & Technical Bias Strip UI",
+      "description": "As a trader, I want separate Intraday and Long-Term chart tabs using TradingView Lightweight Charts plus a Technical & F&O Bias Strip.",
       "acceptanceCriteria": [
         "Mode tabs switch cleanly between Intraday, F&O, and Long-Term",
+        "Quick Technical & F&O Bias Strip displays Bullish/Neutral/Bearish gauge above the chart",
         "Intraday tab supports 1m/5m/15m/1h intervals and toggleable VWAP, EMA 9/21, Volume, and RSI(14)",
         "Long-Term tab supports 3M/6M/1Y/3Y/5Y/MAX ranges and toggleable 50 DMA, 200 DMA, and 52W High/Low lines",
         "Typecheck passes",
@@ -147,11 +149,12 @@
     },
     {
       "id": "US-011",
-      "title": "Stock News Feed Panel UI",
-      "description": "As a trader, I want a clean News Section right below or beside the charts showing current and historical news for the selected stock with source, timeframe, and sentiment filters.",
+      "title": "Stock News Feed Panel & Chart News Event Pins UI",
+      "description": "As a trader, I want a clean News Section showing current and historical news plus News Event Pins plotted on Long-Term candlesticks.",
       "acceptanceCriteria": [
         "News panel displays headline, source badge, timestamp, sentiment pill, and external article link",
         "Timeframe (Today, 7D, 30D, Historical) and Source (All, Moneycontrol, ET, LiveMint) filters work",
+        "Long-Term chart overlays clickable News Event Pins on historical candles matching article dates",
         "Switching stock reloads news cleanly with loading state",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
