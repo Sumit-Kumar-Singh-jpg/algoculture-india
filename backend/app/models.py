@@ -60,3 +60,74 @@ class MarketPulseResponse(BaseModel):
     market_status: str
     as_of: str
     items: list[MarketPulseItem]
+
+
+class CandleItem(BaseModel):
+    time: int  # Unix timestamp in seconds for lightweight-charts
+    time_iso: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+    vwap: float | None = None
+    ema9: float | None = None
+    ema21: float | None = None
+    sma50: float | None = None
+    sma200: float | None = None
+    rsi14: float | None = None
+
+
+class TechnicalBias(BaseModel):
+    bias: str  # BULLISH | BEARISH | NEUTRAL
+    score: float  # -1.0 to 1.0
+    summary: str
+    rsi: float | None = None
+    vwap_signal: str
+    ema_signal: str
+    dma_signal: str
+
+
+class StockHistoryResponse(BaseModel):
+    symbol: str
+    yahoo_symbol: str
+    mode: str
+    interval: str
+    range: str
+    currency: str = "INR"
+    session_date: str
+    candles: list[CandleItem]
+    bias: TechnicalBias
+    as_of: str
+    stale: bool = False
+
+
+class OptionStrikeItem(BaseModel):
+    strike: float
+    call_oi: int
+    call_change_oi: int
+    call_ltp: float
+    call_iv: float | None = None
+    put_oi: int
+    put_change_oi: int
+    put_ltp: float
+    put_iv: float | None = None
+
+
+class FnoAnalyticsResponse(BaseModel):
+    symbol: str
+    fno_eligible: bool
+    spot_price: float
+    current_expiry: str | None = None
+    expiries: list[str] = []
+    pcr: float | None = None
+    max_pain: float | None = None
+    atm_iv: float | None = None
+    call_resistance_strike: float | None = None
+    put_support_strike: float | None = None
+    fno_bias: str = "NEUTRAL"
+    strikes: list[OptionStrikeItem] = []
+    message: str | None = None
+    as_of: str
+    stale: bool = False
+

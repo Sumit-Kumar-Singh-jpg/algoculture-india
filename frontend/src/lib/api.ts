@@ -43,3 +43,34 @@ export function fetchMarketPulse(
 ): Promise<MarketPulseResponse> {
   return fetchJson<MarketPulseResponse>("/api/stocks/pulse", signal);
 }
+
+export function fetchStockHistory(
+  symbol: string,
+  mode: "intraday" | "longterm",
+  interval?: string,
+  timeRange?: string,
+  signal?: AbortSignal
+): Promise<import("./types").StockHistoryResponse> {
+  const params = new URLSearchParams({ mode });
+  if (interval) params.set("interval", interval);
+  if (timeRange) params.set("range", timeRange);
+  return fetchJson<import("./types").StockHistoryResponse>(
+    `/api/stocks/${encodeURIComponent(symbol)}/history?${params.toString()}`,
+    signal
+  );
+}
+
+export function fetchFnoAnalytics(
+  symbol: string,
+  expiry?: string,
+  signal?: AbortSignal
+): Promise<import("./types").FnoAnalyticsResponse> {
+  const params = new URLSearchParams();
+  if (expiry) params.set("expiry", expiry);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return fetchJson<import("./types").FnoAnalyticsResponse>(
+    `/api/stocks/${encodeURIComponent(symbol)}/fno${q}`,
+    signal
+  );
+}
+

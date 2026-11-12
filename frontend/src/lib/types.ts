@@ -60,3 +60,74 @@ export interface WatchlistEntry {
   name: string;
   exchange: string;
 }
+
+export interface CandleItem {
+  time: number; // Unix timestamp in seconds
+  time_iso: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  vwap?: number | null;
+  ema9?: number | null;
+  ema21?: number | null;
+  sma50?: number | null;
+  sma200?: number | null;
+  rsi14?: number | null;
+}
+
+export interface TechnicalBias {
+  bias: "BULLISH" | "BEARISH" | "NEUTRAL" | string;
+  score: number;
+  summary: string;
+  rsi?: number | null;
+  vwap_signal: string;
+  ema_signal: string;
+  dma_signal: string;
+}
+
+export interface StockHistoryResponse {
+  symbol: string;
+  yahoo_symbol: string;
+  mode: string;
+  interval: string;
+  range: string;
+  currency: string;
+  session_date: string;
+  candles: CandleItem[];
+  bias: TechnicalBias;
+  as_of: string;
+  stale: boolean;
+}
+
+export interface OptionStrikeItem {
+  strike: number;
+  call_oi: number;
+  call_change_oi: number;
+  call_ltp: number;
+  call_iv?: number | null;
+  put_oi: number;
+  put_change_oi: number;
+  put_ltp: number;
+  put_iv?: number | null;
+}
+
+export interface FnoAnalyticsResponse {
+  symbol: string;
+  fno_eligible: boolean;
+  spot_price: number;
+  current_expiry?: string | null;
+  expiries: string[];
+  pcr?: number | null;
+  max_pain?: number | null;
+  atm_iv?: number | null;
+  call_resistance_strike?: number | null;
+  put_support_strike?: number | null;
+  fno_bias: string;
+  strikes: OptionStrikeItem[];
+  message?: string | null;
+  as_of: string;
+  stale: boolean;
+}
+

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-11-12)
 
 **Core value:** Select any Indian stock and immediately inspect its Intraday, F&O, and Long-Term charts alongside an AI prediction forecast and Moneycontrol-sourced stock news in one clean terminal.
-**Current focus:** Phase 1 — Foundation & Live Market Data (in progress)
+**Current focus:** Phase 2 — Intraday, F&O & Long-Term Charts
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation & Live Market Data)
+Phase: 2 of 4 (Intraday, F&O & Long-Term Charts)
 Plan: 1 of 3 in current phase
-Status: In progress — Building Phase 1 (scaffold, stock search, quote API, Market Pulse & Local Watchlist)
-Last activity: 2026-11-12 — Approved OPT-01..OPT-04 and started Phase 1 implementation
+Status: In progress — Phase 1 verified and committed; advancing to Phase 2
+Last activity: 2026-11-12 — Shipped Phase 1 (`MKT-01`, `MKT-02`, `MKT-03`, `OPT-03`, `OPT-04`) with passing tests & build
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 

@@ -2,9 +2,11 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { TrendingUp, ShieldAlert, Sparkles, Newspaper } from "lucide-react";
-import { fetchMarketPulse, fetchStockQuote } from "@/lib/api";
+import { fetchFnoAnalytics, fetchMarketPulse, fetchStockHistory, fetchStockQuote } from "@/lib/api";
 import type {
+  FnoAnalyticsResponse,
   MarketPulseResponse,
+  StockHistoryResponse,
   StockQuote,
   StockSearchItem,
   TradingMode,
@@ -14,6 +16,9 @@ import { MarketPulseBar } from "@/components/MarketPulseBar";
 import { StockSearchBar } from "@/components/StockSearchBar";
 import { WatchlistStrip } from "@/components/WatchlistStrip";
 import { LiveQuoteHeader } from "@/components/LiveQuoteHeader";
+import { TechnicalBiasStrip } from "@/components/TechnicalBiasStrip";
+import { StockChartCanvas } from "@/components/StockChartCanvas";
+import { FnoDerivativesPanel } from "@/components/FnoDerivativesPanel";
 
 const DEFAULT_WATCHLIST: WatchlistEntry[] = [
   { symbol: "NIFTY", name: "NIFTY 50 Index", exchange: "NSE" },
@@ -31,6 +36,22 @@ export default function HomePage() {
   const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>(DEFAULT_WATCHLIST);
+
+  // Phase 2 state
+  const [history, setHistory] = useState<StockHistoryResponse | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [intradayInterval, setIntradayInterval] = useState("5m");
+  const [longtermRange, setLongtermRange] = useState("1y");
+  const [showVwap, setShowVwap] = useState(true);
+  const [showEma, setShowEma] = useState(true);
+  const [showDma, setShowDma] = useState(true);
+  const [showVolume, setShowVolume] = useState(true);
+  const [showRsi, setShowRsi] = useState(true);
+
+  // F&O state
+  const [fno, setFno] = useState<FnoAnalyticsResponse | null>(null);
+  const [isFnoLoading, setIsFnoLoading] = useState(false);
+  const [selectedExpiry, setSelectedExpiry] = useState<string>("");
 
   // Load watchlist from localStorage
   useEffect(() => {
@@ -78,7 +99,53 @@ export default function HomePage() {
     }
   }, []);
 
-  // Poll quote every 10s and pulse every 15s
+  const loadHistory = useCallback(
+    async (symbol: string, mode: TradingMode, interval: string, range: string) => {
+      setIsHistoryLoading(true);
+      try {
+        const histMode = mode === "longterm" ? "longterm" : "intraday";
+        const data = await fetchStockHistory(
+          symbol,
+          histMode,
+          histMode === "intraday" ? interval : undefined,
+          histMode === "longterm" ? range : undefined
+        );
+        setHistory(data);
+      } catch {
+        // Retain previous or empty on failure
+      } finally {
+        setIsHistoryLoading(false);
+      }
+    },
+    []
+  );
+
+  const loadFno = useCallback(async (symbol: string, expiry?: string) => {
+    setIsFnoLoading(true);
+    try {
+      const data = await fetchFnoAnalytics(symbol, expiry);
+      setFno(data);
+      if (data.current_expiry && !expiry) {
+        setSelectedExpiry(data.current_expiry);
+      }
+    } catch {
+      setFno(null);
+    } finally {
+      setIsFnoLoading(false);
+    }
+  }, []);
+
+  // Sync History on symbol / mode / timeframe change
+  useEffect(() => {
+    loadHistory(activeSymbol, activeMode, intradayInterval, longtermRange);
+  }, [activeSymbol, activeMode, intradayInterval, longtermRange, loadHistory]);
+
+  // Sync F&O on symbol or expiry change
+  useEffect(() => {
+    if (activeMode === "fno") {
+      loadFno(activeSymbol, selectedExpiry || undefined);
+    }
+  }, [activeSymbol, activeMode, selectedExpiry, loadFno]);
   useEffect(() => {
     loadQuote(activeSymbol);
     const interval = setInterval(() => {
@@ -170,6 +237,13 @@ export default function HomePage() {
           onRefresh={() => loadQuote(activeSymbol)}
         />
 
+        {/* Quick Technical & F&O Bias Strip (OPT-02) */}
+        <TechnicalBiasStrip
+          bias={history?.bias ?? null}
+          fnoBias={fno?.fno_bias}
+          isFno={Boolean(quote?.is_fno)}
+        />
+
         {/* Trading Mode Switcher Tabs */}
         <section className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2">
           <div className="flex items-center gap-1 rounded-lg bg-slate-900/90 p-1">
@@ -213,27 +287,113 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              AI Prediction: Active
-            </span>
+          {/* Timeframe Selectors & Indicator Toggles */}
+          <div className="flex flex-wrap items-center gap-2">
+            {activeMode === "intraday" && (
+              <div className="flex items-center rounded-md border border-slate-800 bg-slate-900/80 p-0.5 text-xs">
+                {["1m", "5m", "15m", "1h"].map((intvl) => (
+                  <button
+                    key={intvl}
+                    type="button"
+                    onClick={() => setIntradayInterval(intvl)}
+                    className={`rounded px-2 py-1 font-mono text-[11px] font-medium transition ${
+                      intradayInterval === intvl
+                        ? "bg-sky-500 text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {intvl}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeMode === "longterm" && (
+              <div className="flex items-center rounded-md border border-slate-800 bg-slate-900/80 p-0.5 text-xs">
+                {["3mo", "6mo", "1y", "3y", "5y", "max"].map((rng) => (
+                  <button
+                    key={rng}
+                    type="button"
+                    onClick={() => setLongtermRange(rng)}
+                    className={`rounded px-2 py-1 font-mono text-[11px] font-medium uppercase transition ${
+                      longtermRange === rng
+                        ? "bg-emerald-600 text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {rng}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Quick Indicator Toggles */}
+            <div className="flex items-center gap-1.5 pl-2 text-[11px]">
+              {activeMode === "intraday" && (
+                <button
+                  type="button"
+                  onClick={() => setShowVwap(!showVwap)}
+                  className={`rounded border px-2 py-1 transition ${
+                    showVwap
+                      ? "border-amber-500/50 bg-amber-500/15 text-amber-300"
+                      : "border-slate-800 bg-slate-900 text-slate-500"
+                  }`}
+                >
+                  VWAP
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowEma(!showEma)}
+                className={`rounded border px-2 py-1 transition ${
+                  showEma
+                    ? "border-sky-500/50 bg-sky-500/15 text-sky-300"
+                    : "border-slate-800 bg-slate-900 text-slate-500"
+                }`}
+              >
+                EMA 9/21
+              </button>
+              {activeMode === "longterm" && (
+                <button
+                  type="button"
+                  onClick={() => setShowDma(!showDma)}
+                  className={`rounded border px-2 py-1 transition ${
+                    showDma
+                      ? "border-purple-500/50 bg-purple-500/15 text-purple-300"
+                      : "border-slate-800 bg-slate-900 text-slate-500"
+                  }`}
+                >
+                  50/200 DMA
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowVolume(!showVolume)}
+                className={`rounded border px-2 py-1 transition ${
+                  showVolume
+                    ? "border-slate-700 bg-slate-800 text-slate-300"
+                    : "border-slate-800 bg-slate-900 text-slate-500"
+                }`}
+              >
+                Vol
+              </button>
+            </div>
           </div>
         </section>
 
-        {/* Phase 1 Workspace Placeholder Banner (Phases 2-4 wire into this) */}
+        {/* Phase 2 Multi-Horizon Chart & Derivatives Workspace */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* Main Chart Stage */}
-          <div className="rounded-xl border border-slate-800/80 bg-[#0e1525] p-6 lg:col-span-2">
-            <div className="flex items-center justify-between pb-4">
+          {/* Main Chart / F&O Stage */}
+          <div className="rounded-xl border border-slate-800/80 bg-[#0e1525] p-4 lg:col-span-2">
+            <div className="flex items-center justify-between pb-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-200">
-                  {activeMode === "intraday" && "Intraday Candlestick Chart (1m – 1h + VWAP & RSI)"}
-                  {activeMode === "fno" && "F&O Derivatives & NSE Option Chain (OI / PCR / Max Pain)"}
-                  {activeMode === "longterm" && "Long-Term Historical Chart (3M – MAX + 50/200 DMA)"}
+                  {activeMode === "intraday" && `Intraday Chart (${intradayInterval})`}
+                  {activeMode === "fno" && "F&O Derivatives & Option Chain Analytics"}
+                  {activeMode === "longterm" && `Long-Term Historical Chart (${longtermRange.toUpperCase()})`}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  TradingView Lightweight Charts + AI Prediction Overlay
+                  TradingView Lightweight Charts • {activeSymbol}
                 </p>
               </div>
               <span className="rounded bg-slate-800 px-2 py-0.5 text-xs font-mono text-sky-400">
@@ -241,16 +401,24 @@ export default function HomePage() {
               </span>
             </div>
 
-            <div className="flex h-80 flex-col items-center justify-center rounded-lg border border-dashed border-slate-800 bg-slate-900/40 p-6 text-center">
-              <TrendingUp className="mb-2 h-8 w-8 text-sky-400" />
-              <p className="text-sm font-medium text-slate-200">
-                Phase 1 Live Market Data Connected
-              </p>
-              <p className="max-w-md pt-1 text-xs text-slate-400">
-                Live LTP: <span className="font-mono text-white font-semibold">₹{quote?.ltp.toFixed(2) ?? "—"}</span> ({quote?.change_pct.toFixed(2) ?? "—"}%).
-                FastAPI OHLCV endpoints and TradingView multi-horizon chart canvas connect in Phase 2.
-              </p>
-            </div>
+            {activeMode === "fno" ? (
+              <FnoDerivativesPanel
+                fno={fno}
+                selectedExpiry={selectedExpiry}
+                onSelectExpiry={(exp) => setSelectedExpiry(exp)}
+                isLoading={isFnoLoading}
+              />
+            ) : (
+              <StockChartCanvas
+                candles={history?.candles ?? []}
+                mode={activeMode}
+                showVwap={showVwap}
+                showEma={showEma}
+                showDma={showDma}
+                showVolume={showVolume}
+                showRsi={showRsi}
+              />
+            )}
           </div>
 
           {/* News & AI Overview Stage */}

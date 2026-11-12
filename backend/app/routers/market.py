@@ -4,11 +4,15 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.config import get_nse_market_status
 from app.models import (
+    FnoAnalyticsResponse,
     HealthResponse,
     MarketPulseResponse,
+    StockHistoryResponse,
     StockQuoteResponse,
     StockSearchResponse,
 )
+from app.services.fno_service import get_fno_analytics
+from app.services.history_service import get_stock_history
 from app.services.market_data import (
     get_market_pulse,
     get_stock_quote,
@@ -54,3 +58,36 @@ def stock_quote(symbol: str) -> StockQuoteResponse:
             status_code=502,
             detail=f"Unable to fetch quote for {symbol}: {exc}",
         ) from exc
+
+
+@router.get("/stocks/{symbol}/history", response_model=StockHistoryResponse)
+def stock_history(
+    symbol: str,
+    mode: str = Query(default="intraday"),
+    interval: str | None = Query(default=None),
+    range: str | None = Query(default=None),
+) -> StockHistoryResponse:
+    try:
+        return get_stock_history(symbol, mode=mode, interval=interval, time_range=range)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Unable to fetch history for {symbol}: {exc}",
+        ) from exc
+
+
+@router.get("/stocks/{symbol}/fno", response_model=FnoAnalyticsResponse)
+def stock_fno(
+    symbol: str,
+    expiry: str | None = Query(default=None),
+) -> FnoAnalyticsResponse:
+    try:
+        return get_fno_analytics(symbol, expiry=expiry)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Unable to fetch F&O derivatives for {symbol}: {exc}",
+        ) from exc
+
