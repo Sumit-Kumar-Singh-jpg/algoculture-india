@@ -9,6 +9,7 @@ import pandas as pd
 import yfinance as yf
 
 from app.config import (
+    HISTORY_INTRADAY_TTL_SECONDS,
     HISTORY_TTL_SECONDS,
     USER_AGENT,
 )
@@ -20,7 +21,8 @@ from app.models import (
 )
 from app.services.cache import ResilientTTLCache
 
-_history_cache = ResilientTTLCache(maxsize=256, ttl=HISTORY_TTL_SECONDS)
+_intraday_history_cache = ResilientTTLCache(maxsize=256, ttl=HISTORY_INTRADAY_TTL_SECONDS)
+_longterm_history_cache = ResilientTTLCache(maxsize=256, ttl=HISTORY_TTL_SECONDS)
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 
@@ -218,8 +220,9 @@ def get_stock_history(
         )
 
     cache_key = f"hist:{yahoo_symbol}:{resolved_mode}:{mapped_interval}:{mapped_range}"
+    active_cache = _intraday_history_cache if resolved_mode == "intraday" else _longterm_history_cache
 
-    raw_chart, cached_at, stale = _history_cache.get_or_fetch(
+    raw_chart, cached_at, stale = active_cache.get_or_fetch(
         cache_key,
         lambda: _fetch_yahoo_ohlcv(yahoo_symbol, mapped_interval, mapped_range),
     )
@@ -293,4 +296,5 @@ def get_stock_history(
         stale=stale,
     )
 def clear_history_cache() -> None:
-    _history_cache.clear()
+    _intraday_history_cache.clear()
+    _longterm_history_cache.clear()

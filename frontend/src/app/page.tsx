@@ -122,8 +122,16 @@ export default function HomePage() {
   }, []);
 
   const loadHistory = useCallback(
-    async (symbol: string, mode: TradingMode, interval: string, range: string) => {
-      setIsHistoryLoading(true);
+    async (
+      symbol: string,
+      mode: TradingMode,
+      interval: string,
+      range: string,
+      showSpinner = false
+    ) => {
+      if (showSpinner) {
+        setIsHistoryLoading(true);
+      }
       try {
         const histMode = mode === "longterm" ? "longterm" : "intraday";
         const data = await fetchStockHistory(
@@ -136,7 +144,9 @@ export default function HomePage() {
       } catch {
         // Retain previous or empty on failure
       } finally {
-        setIsHistoryLoading(false);
+        if (showSpinner) {
+          setIsHistoryLoading(false);
+        }
       }
     },
     []
@@ -194,9 +204,18 @@ export default function HomePage() {
     loadNews(activeSymbol, newsTimeframe, newsSourceFilter);
   }, [activeSymbol, newsTimeframe, newsSourceFilter, loadNews]);
 
-  // Sync History on symbol / mode / timeframe change
+  // Sync History on symbol / mode / timeframe change + Auto-poll live candles
   useEffect(() => {
-    loadHistory(activeSymbol, activeMode, intradayInterval, longtermRange);
+    // Initial fetch with loader
+    loadHistory(activeSymbol, activeMode, intradayInterval, longtermRange, true);
+
+    // Auto-poll history in background (every 8s for intraday, 60s for longterm)
+    const pollIntervalMs = activeMode === "intraday" ? 8_000 : 60_000;
+    const timer = setInterval(() => {
+      loadHistory(activeSymbol, activeMode, intradayInterval, longtermRange, false);
+    }, pollIntervalMs);
+
+    return () => clearInterval(timer);
   }, [activeSymbol, activeMode, intradayInterval, longtermRange, loadHistory]);
 
   // Sync F&O on symbol or expiry change
@@ -205,11 +224,13 @@ export default function HomePage() {
       loadFno(activeSymbol, selectedExpiry || undefined);
     }
   }, [activeSymbol, activeMode, selectedExpiry, loadFno]);
+
+  // Live Quote Ticker (every 5 seconds)
   useEffect(() => {
     loadQuote(activeSymbol);
     const interval = setInterval(() => {
       loadQuote(activeSymbol);
-    }, 10_000);
+    }, 5_000);
     return () => clearInterval(interval);
   }, [activeSymbol, loadQuote]);
 
@@ -446,11 +467,19 @@ export default function HomePage() {
           <div className="rounded-xl border border-slate-800/80 bg-[#0e1525] p-4 lg:col-span-2">
             <div className="flex items-center justify-between pb-3">
               <div>
-                <h2 className="text-sm font-semibold text-slate-200">
-                  {activeMode === "intraday" && `Intraday Chart (${intradayInterval})`}
-                  {activeMode === "fno" && "F&O Derivatives & Option Chain Analytics"}
-                  {activeMode === "longterm" && `Long-Term Historical Chart (${longtermRange.toUpperCase()})`}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-200">
+                    {activeMode === "intraday" && `Intraday Chart (${intradayInterval})`}
+                    {activeMode === "fno" && "F&O Derivatives & Option Chain Analytics"}
+                    {activeMode === "longterm" && `Long-Term Historical Chart (${longtermRange.toUpperCase()})`}
+                  </h2>
+                  {activeMode === "intraday" && (
+                    <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      LIVE
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-slate-500">
                   TradingView Lightweight Charts • {activeSymbol}
                 </p>
@@ -473,6 +502,7 @@ export default function HomePage() {
                 interval={activeMode === "intraday" ? intradayInterval : longtermRange}
                 candles={history?.candles ?? []}
                 mode={activeMode}
+                livePrice={quote?.ltp}
                 showVwap={showVwap}
                 showEma={showEma}
                 showDma={showDma}

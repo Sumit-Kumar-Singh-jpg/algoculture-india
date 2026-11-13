@@ -19,6 +19,7 @@ interface StockChartCanvasProps {
   interval?: string;
   candles: CandleItem[];
   mode: TradingMode;
+  livePrice?: number;
   showVwap: boolean;
   showEma: boolean;
   showDma: boolean;
@@ -33,6 +34,7 @@ export function StockChartCanvas({
   interval,
   candles,
   mode,
+  livePrice,
   showVwap,
   showEma,
   showDma,
@@ -169,6 +171,8 @@ export function StockChartCanvas({
         borderVisible: false,
         wickUpColor: "#10b981",
         wickDownColor: "#f43f5e",
+        priceLineVisible: true,
+        lastValueVisible: true,
       });
     }
 
@@ -179,6 +183,17 @@ export function StockChartCanvas({
       low: c.low,
       close: c.close,
     }));
+
+    if (livePrice && mode === "intraday" && candleData.length > 0) {
+      const lastCandle = candleData[candleData.length - 1];
+      lastCandle.close = livePrice;
+      lastCandle.high = Math.max(lastCandle.high, livePrice);
+      lastCandle.low = Math.min(lastCandle.low, livePrice);
+    }
+
+    const isResetting = prevCandlesLenRef.current === 0 || modeChanged || symbolChanged || intervalChanged;
+    const savedLogicalRange = !isResetting ? chart.timeScale().getVisibleLogicalRange() : null;
+
     candleSeriesRef.current.setData(candleData);
 
     // --- Volume Series ---
@@ -417,18 +432,54 @@ export function StockChartCanvas({
     setLegend({
       time: last.time_iso,
       open: last.open,
-      high: last.high,
-      low: last.low,
-      close: last.close,
+      high: livePrice && mode === "intraday" ? Math.max(last.high, livePrice) : last.high,
+      low: livePrice && mode === "intraday" ? Math.min(last.low, livePrice) : last.low,
+      close: livePrice && mode === "intraday" ? livePrice : last.close,
       volume: last.volume,
     });
 
     // ONLY fitContent on initial load, symbol switch, mode switch, or interval switch — NOT on periodic polling updates!
-    if (prevCandlesLenRef.current === 0 || modeChanged || symbolChanged || intervalChanged) {
+    if (isResetting) {
       chart.timeScale().fitContent();
+    } else if (savedLogicalRange) {
+      const delta = candleData.length - prevCandlesLenRef.current;
+      if (delta > 0 && savedLogicalRange.to >= prevCandlesLenRef.current - 1) {
+        chart.timeScale().setVisibleLogicalRange({
+          from: savedLogicalRange.from + delta,
+          to: savedLogicalRange.to + delta,
+        });
+      } else {
+        chart.timeScale().setVisibleLogicalRange(savedLogicalRange);
+      }
     }
     prevCandlesLenRef.current = candles.length;
-  }, [candles, mode, symbol, interval, showVwap, showEma, showDma, showVolume, aiPredictionData, newsEvents]);
+  }, [candles, mode, symbol, interval, livePrice, showVwap, showEma, showDma, showVolume, aiPredictionData, newsEvents]);
+
+  // 3. Live Price Tick Effect: updates the active candle bar and legend in real-time between full candle polls
+  useEffect(() => {
+    const candleSeries = candleSeriesRef.current;
+    if (!candleSeries || !livePrice || candles.length === 0 || mode !== "intraday") {
+      return;
+    }
+    const last = candles[candles.length - 1];
+    const updatedHigh = Math.max(last.high, livePrice);
+    const updatedLow = Math.min(last.low, livePrice);
+
+    candleSeries.update({
+      time: last.time as Time,
+      open: last.open,
+      high: updatedHigh,
+      low: updatedLow,
+      close: livePrice,
+    });
+
+    setLegend((prev) => ({
+      ...prev,
+      close: livePrice,
+      high: Math.max(prev.high ?? last.high, livePrice),
+      low: Math.min(prev.low ?? last.low, livePrice),
+    }));
+  }, [livePrice, candles, mode]);
 
   return (
     <div className="relative w-full">
