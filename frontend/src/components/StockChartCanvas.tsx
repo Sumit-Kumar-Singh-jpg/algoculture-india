@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { Pencil, Maximize2 } from "lucide-react";
 import {
   createChart,
   ColorType,
@@ -28,6 +29,7 @@ interface StockChartCanvasProps {
   aiPredictionData?: Array<{ time: number; price: number; lower1?: number; upper1?: number }> | null;
   stopLossPrice?: number;
   newsEvents?: Array<{ time: number; title: string; sentiment: string }> | null;
+  onOpenStudio?: () => void;
 }
 
 export function StockChartCanvas({
@@ -44,6 +46,7 @@ export function StockChartCanvas({
   aiPredictionData,
   stopLossPrice,
   newsEvents,
+  onOpenStudio,
 }: StockChartCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -677,6 +680,18 @@ export function StockChartCanvas({
           <span>
             Vol: <strong className="text-sky-300">{legend.volume.toLocaleString("en-IN")}</strong>
           </span>
+        )}
+        {onOpenStudio && (
+          <button
+            type="button"
+            onClick={onOpenStudio}
+            className="ml-auto flex items-center gap-1.5 rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/25 transition shadow-sm"
+            title="Open Interactive Chart & Drawing Studio"
+          >
+            <Pencil className="h-3 w-3 text-sky-400" />
+            <span>Drawing Studio</span>
+            <Maximize2 className="h-2.5 w-2.5 text-sky-400 ml-0.5" />
+          </button>
         )}
       </div>
 

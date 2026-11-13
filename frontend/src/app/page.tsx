@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { TrendingUp, ShieldAlert, Sparkles, Newspaper } from "lucide-react";
+import { TrendingUp, ShieldAlert, Sparkles, Newspaper, Pencil, Maximize2 } from "lucide-react";
 import {
   fetchFnoAnalytics,
   fetchMarketPulse,
@@ -31,6 +31,7 @@ import { FnoDerivativesPanel } from "@/components/FnoDerivativesPanel";
 import { AiPredictionCard } from "@/components/AiPredictionCard";
 import { StockNewsPanel } from "@/components/StockNewsPanel";
 import { UserNav } from "@/components/UserNav";
+import { ChartStudioModal } from "@/components/ChartStudioModal";
 
 const DEFAULT_WATCHLIST: WatchlistEntry[] = [
   { symbol: "NIFTY", name: "NIFTY 50 Index", exchange: "NSE" },
@@ -76,6 +77,9 @@ export default function HomePage() {
   const [isNewsLoading, setIsNewsLoading] = useState(false);
   const [newsTimeframe, setNewsTimeframe] = useState("all");
   const [newsSourceFilter, setNewsSourceFilter] = useState("all");
+
+  // Interactive Chart & Drawing Studio state
+  const [isChartStudioOpen, setIsChartStudioOpen] = useState(false);
 
   // Load watchlist from localStorage
   useEffect(() => {
@@ -582,9 +586,23 @@ export default function HomePage() {
                   TradingView Lightweight Charts • {activeSymbol}
                 </p>
               </div>
-              <span className="rounded bg-slate-800 px-2 py-0.5 text-xs font-mono text-sky-400">
-                {activeSymbol}
-              </span>
+              <div className="flex items-center gap-2">
+                {activeMode !== "fno" && (
+                  <button
+                    type="button"
+                    onClick={() => setIsChartStudioOpen(true)}
+                    className="flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-300 hover:bg-sky-500/25 transition shadow-sm"
+                    title="Open Interactive Chart & Drawing Studio"
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-sky-400" />
+                    <span>Drawing Studio</span>
+                    <Maximize2 className="h-3 w-3 text-sky-400 ml-0.5" />
+                  </button>
+                )}
+                <span className="rounded bg-slate-800 px-2 py-0.5 text-xs font-mono text-sky-400">
+                  {activeSymbol}
+                </span>
+              </div>
             </div>
 
             {activeMode === "fno" ? (
@@ -606,6 +624,7 @@ export default function HomePage() {
                 showDma={showDma}
                 showVolume={showVolume}
                 showRsi={showRsi}
+                onOpenStudio={() => setIsChartStudioOpen(true)}
                 aiPredictionData={aiPredictionOverlay}
                 stopLossPrice={
                   isPredictionOverlayActive
@@ -660,6 +679,41 @@ export default function HomePage() {
           <span>AlgoCulture India v0.1.0</span>
         </footer>
       </main>
+
+      {/* Interactive Charting Studio & Drawing Canvas Modal */}
+      <ChartStudioModal
+        isOpen={isChartStudioOpen}
+        onClose={() => setIsChartStudioOpen(false)}
+        symbol={activeSymbol}
+        exchange={quote?.exchange ?? "NSE"}
+        name={quote?.name}
+        interval={activeMode === "intraday" ? intradayInterval : longtermRange}
+        onSelectInterval={(inv) => {
+          if (activeMode === "intraday") {
+            setIntradayInterval(inv);
+          } else {
+            setLongtermRange(inv);
+          }
+        }}
+        candles={history?.candles ?? []}
+        mode={activeMode}
+        livePrice={quote?.ltp}
+        prevClose={quote?.prev_close}
+        showVwap={showVwap}
+        onToggleVwap={() => setShowVwap(!showVwap)}
+        showEma={showEma}
+        onToggleEma={() => setShowEma(!showEma)}
+        showDma={showDma}
+        onToggleDma={() => setShowDma(!showDma)}
+        showVolume={showVolume}
+        onToggleVolume={() => setShowVolume(!showVolume)}
+        aiPredictionData={aiPredictionOverlay}
+        stopLossPrice={
+          isPredictionOverlayActive
+            ? (activeHorizonItem?.stop_loss ?? prediction?.stop_loss ?? undefined)
+            : undefined
+        }
+      />
     </div>
   );
 }
