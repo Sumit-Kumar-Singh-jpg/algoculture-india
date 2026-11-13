@@ -150,6 +150,21 @@ class BacktestMetrics(BaseModel):
     model_name: str
 
 
+class HorizonForecastItem(BaseModel):
+    horizon_id: str  # 1m, 5m, 30m, 1h, 1d, 5d
+    label: str       # Next 1 Min, Next 5 Min, Next 30 Min, Next 1 Hr, Next 1 Day, Next 5 Days
+    target_price: float
+    expected_change: float
+    expected_change_pct: float
+    direction: str   # BULLISH | BEARISH | NEUTRAL
+    lower_1sigma: float
+    upper_1sigma: float
+    lower_2sigma: float
+    upper_2sigma: float
+    target_time_iso: str
+    target_time_sec: int
+
+
 class StockPredictionResponse(BaseModel):
     symbol: str
     yahoo_symbol: str
@@ -161,6 +176,7 @@ class StockPredictionResponse(BaseModel):
     disclaimer: str
     metrics: BacktestMetrics
     forecast: list[ForecastPoint]
+    horizons: list[HorizonForecastItem] = []
     as_of: str
     stale: bool = False
 

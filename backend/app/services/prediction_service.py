@@ -13,12 +13,73 @@ from app.data.symbols import resolve_symbol
 from app.models import (
     BacktestMetrics,
     ForecastPoint,
+    HorizonForecastItem,
     StockPredictionResponse,
 )
 from app.services.cache import ResilientTTLCache
 from app.services.history_service import get_stock_history
 
 _predict_cache = ResilientTTLCache(maxsize=128, ttl=PREDICT_TTL_SECONDS)
+
+PREDICTED_HORIZONS = [
+    ("1m", "Next 1 Min", 60, 0.0015),
+    ("5m", "Next 5 Min", 300, 0.003),
+    ("30m", "Next 30 Min", 1800, 0.0065),
+    ("1h", "Next 1 Hr", 3600, 0.009),
+    ("1d", "Next 1 Day", 86400, 0.018),
+    ("5d", "Next 5 Days", 432000, 0.035),
+]
+
+
+def _build_horizon_matrix(
+    current_price: float,
+    last_time: int,
+    base_model_return: float,
+    hist_vol: float,
+) -> list[HorizonForecastItem]:
+    items: list[HorizonForecastItem] = []
+
+    for hid, label, delta_sec, time_scale in PREDICTED_HORIZONS:
+        # Scale drift return based on horizon duration
+        step_drift = max(-0.06, min(0.06, base_model_return * math.sqrt(delta_sec / 300.0) * 0.7))
+        target = round(current_price * (1.0 + step_drift), 2)
+        change = round(target - current_price, 2)
+        change_pct = round((change / current_price) * 100, 2) if current_price > 0 else 0.0
+
+        if change_pct >= 0.15:
+            direction = "BULLISH"
+        elif change_pct <= -0.15:
+            direction = "BEARISH"
+        else:
+            direction = "NEUTRAL"
+
+        vol_spread = max(0.002, hist_vol * math.sqrt(delta_sec / 300.0)) * current_price
+        l1 = round(max(0.1, target - vol_spread), 2)
+        u1 = round(target + vol_spread, 2)
+        l2 = round(max(0.1, target - (vol_spread * 2.0)), 2)
+        u2 = round(target + (vol_spread * 2.0), 2)
+
+        target_time = last_time + delta_sec
+        iso_str = datetime.fromtimestamp(target_time, tz=timezone.utc).isoformat()
+
+        items.append(
+            HorizonForecastItem(
+                horizon_id=hid,
+                label=label,
+                target_price=target,
+                expected_change=change,
+                expected_change_pct=change_pct,
+                direction=direction,
+                lower_1sigma=l1,
+                upper_1sigma=u1,
+                lower_2sigma=l2,
+                upper_2sigma=u2,
+                target_time_iso=iso_str,
+                target_time_sec=target_time,
+            )
+        )
+
+    return items
 
 HORIZON_STEPS = {
     "intraday": 8,   # next 8 5-minute candles (40 mins forward)
@@ -174,6 +235,10 @@ def get_stock_prediction(
         else:
             proj_dir = "NEUTRAL"
 
+        # Generate multi-horizon forecasts: 1m, 5m, 30m, 1h, 1d, 5d
+        base_return = float(model.predict(X[-1].reshape(1, -1))[0])
+        horizons_list = _build_horizon_matrix(current_price, last_time, base_return, hist_vol)
+
         return StockPredictionResponse(
             symbol=canonical,
             yahoo_symbol=yahoo_symbol,
@@ -191,6 +256,7 @@ def get_stock_prediction(
                 model_name="Autoregressive Ridge Regression + Historical Volatility Cone",
             ),
             forecast=forecast_points,
+            horizons=horizons_list,
             as_of=datetime.now(timezone.utc).isoformat(),
         )
 

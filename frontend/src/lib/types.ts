@@ -149,6 +149,21 @@ export interface BacktestMetrics {
   model_name: string;
 }
 
+export interface HorizonForecastItem {
+  horizon_id: "1m" | "5m" | "30m" | "1h" | "1d" | "5d" | string;
+  label: string;
+  target_price: number;
+  expected_change: number;
+  expected_change_pct: number;
+  direction: "BULLISH" | "BEARISH" | "NEUTRAL" | string;
+  lower_1sigma: number;
+  upper_1sigma: number;
+  lower_2sigma: number;
+  upper_2sigma: number;
+  target_time_iso: string;
+  target_time_sec: number;
+}
+
 export interface StockPredictionResponse {
   symbol: string;
   yahoo_symbol: string;
@@ -160,6 +175,7 @@ export interface StockPredictionResponse {
   disclaimer: string;
   metrics: BacktestMetrics;
   forecast: ForecastPoint[];
+  horizons?: HorizonForecastItem[];
   as_of: string;
   stale: boolean;
 }
