@@ -19,7 +19,7 @@ export function AiPredictionCard({
   isLoading,
   isActive,
   onToggleActive,
-  selectedHorizonId = "5m",
+  selectedHorizonId,
   onSelectHorizon,
 }: AiPredictionCardProps) {
   const [internalHorizon, setInternalHorizon] = useState<string>("5m");
@@ -38,7 +38,7 @@ export function AiPredictionCard({
     );
   }
 
-  const activeHid = selectedHorizonId || internalHorizon;
+  const activeHid = selectedHorizonId !== undefined ? selectedHorizonId : internalHorizon;
   const horizons = prediction.horizons ?? [];
   const currentHorizonItem =
     horizons.find((h) => h.horizon_id === activeHid) ||

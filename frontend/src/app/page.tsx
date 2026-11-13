@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { TrendingUp, ShieldAlert, Sparkles, Newspaper } from "lucide-react";
 import {
   fetchFnoAnalytics,
@@ -68,6 +68,7 @@ export default function HomePage() {
   const [prediction, setPrediction] = useState<StockPredictionResponse | null>(null);
   const [isPredictionLoading, setIsPredictionLoading] = useState(false);
   const [isPredictionOverlayActive, setIsPredictionOverlayActive] = useState(true);
+  const [selectedHorizonId, setSelectedHorizonId] = useState<string>("5m");
 
   // Phase 4 News state
   const [news, setNews] = useState<StockNewsResponse | null>(null);
@@ -266,6 +267,62 @@ export default function HomePage() {
   }
 
   const isWatchlisted = watchlist.some((w) => w.symbol === activeSymbol);
+
+  const activeHorizonItem = useMemo(() => {
+    if (!prediction?.horizons || prediction.horizons.length === 0) return null;
+    return (
+      prediction.horizons.find((h) => h.horizon_id === selectedHorizonId) ||
+      prediction.horizons[0]
+    );
+  }, [prediction, selectedHorizonId]);
+
+  const aiPredictionOverlay = useMemo(() => {
+    if (
+      !isPredictionOverlayActive ||
+      !prediction ||
+      !history?.candles ||
+      history.candles.length === 0
+    ) {
+      return null;
+    }
+    const lastCandle = history.candles[history.candles.length - 1];
+    const targetItem = activeHorizonItem;
+    if (!targetItem) {
+      return prediction.forecast.map((f) => ({
+        time: f.time,
+        price: f.predicted,
+        lower1: f.lower_1sigma,
+        upper1: f.upper_1sigma,
+      }));
+    }
+
+    const startT = lastCandle.time;
+    const endT = targetItem.target_time_sec;
+    const startP = prediction.current_price;
+    const endP = targetItem.target_price;
+    const endSpread = Math.abs(targetItem.upper_1sigma - endP);
+
+    const steps =
+      targetItem.horizon_id === "1m"
+        ? 2
+        : targetItem.horizon_id === "5m"
+          ? 3
+          : 5;
+    const pts = [];
+    for (let i = 1; i <= steps; i++) {
+      const frac = i / steps;
+      const t = Math.round(startT + (endT - startT) * frac);
+      const p = Number((startP + (endP - startP) * frac).toFixed(2));
+      const spread = endSpread * Math.sqrt(frac);
+      pts.push({
+        time: t,
+        price: p,
+        lower1: Number(Math.max(0.1, p - spread).toFixed(2)),
+        upper1: Number((p + spread).toFixed(2)),
+      });
+    }
+    return pts;
+  }, [isPredictionOverlayActive, prediction, history, activeHorizonItem]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#090d16]">
@@ -508,16 +565,7 @@ export default function HomePage() {
                 showDma={showDma}
                 showVolume={showVolume}
                 showRsi={showRsi}
-                aiPredictionData={
-                  isPredictionOverlayActive && prediction?.forecast
-                    ? prediction.forecast.map((f) => ({
-                        time: f.time,
-                        price: f.predicted,
-                        lower1: f.lower_1sigma,
-                        upper1: f.upper_1sigma,
-                      }))
-                    : null
-                }
+                aiPredictionData={aiPredictionOverlay}
                 newsEvents={
                   news?.articles
                     ? news.articles.map((a) => ({
@@ -540,6 +588,8 @@ export default function HomePage() {
               onToggleActive={() =>
                 setIsPredictionOverlayActive(!isPredictionOverlayActive)
               }
+              selectedHorizonId={selectedHorizonId}
+              onSelectHorizon={(h) => setSelectedHorizonId(h.horizon_id)}
             />
 
             <StockNewsPanel
