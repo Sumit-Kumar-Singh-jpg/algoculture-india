@@ -147,6 +147,11 @@ export interface BacktestMetrics {
   rmse: number;
   tested_candles: number;
   model_name: string;
+  win_rate_pct?: number;
+  successful_predictions?: number;
+  total_evaluations?: number;
+  confidence_score?: number;
+  confidence_grade?: string;
 }
 
 export interface HorizonForecastItem {
@@ -162,6 +167,8 @@ export interface HorizonForecastItem {
   upper_2sigma: number;
   target_time_iso: string;
   target_time_sec: number;
+  accuracy_score_pct?: number;
+  confidence_level?: string;
 }
 
 export interface StockPredictionResponse {
