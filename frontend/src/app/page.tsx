@@ -469,6 +469,8 @@ export default function HomePage() {
               />
             ) : (
               <StockChartCanvas
+                symbol={activeSymbol}
+                interval={activeMode === "intraday" ? intradayInterval : longtermRange}
                 candles={history?.candles ?? []}
                 mode={activeMode}
                 showVwap={showVwap}
