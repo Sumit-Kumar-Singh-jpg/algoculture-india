@@ -48,6 +48,12 @@ def test_predict_endpoint_intraday() -> None:
         assert first_pt["upper_1sigma"] <= first_pt["upper_2sigma"]
         assert data["metrics"]["directional_accuracy_pct"] >= 40.0
         assert "disclaimer" in data
+        assert data.get("stop_loss") is not None
+        assert data.get("risk_reward_ratio") is not None
+        assert len(data.get("horizons", [])) == 6
+        h5m = next(h for h in data["horizons"] if h["horizon_id"] == "5m")
+        assert h5m["stop_loss"] > 0
+        assert h5m["risk_reward_ratio"] > 0
 
 
 def test_predict_endpoint_longterm() -> None:

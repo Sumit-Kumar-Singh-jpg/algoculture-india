@@ -603,6 +603,11 @@ export default function HomePage() {
                 showVolume={showVolume}
                 showRsi={showRsi}
                 aiPredictionData={aiPredictionOverlay}
+                stopLossPrice={
+                  isPredictionOverlayActive
+                    ? (activeHorizonItem?.stop_loss ?? prediction?.stop_loss ?? undefined)
+                    : undefined
+                }
                 newsEvents={
                   news?.articles
                     ? news.articles.map((a) => ({

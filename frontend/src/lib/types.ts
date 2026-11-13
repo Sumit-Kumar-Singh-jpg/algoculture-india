@@ -169,6 +169,9 @@ export interface HorizonForecastItem {
   target_time_sec: number;
   accuracy_score_pct?: number;
   confidence_level?: string;
+  stop_loss?: number;
+  stop_loss_pct?: number;
+  risk_reward_ratio?: number;
 }
 
 export interface StockPredictionResponse {
@@ -179,6 +182,8 @@ export interface StockPredictionResponse {
   forecast_target: number;
   expected_change_pct: number;
   projected_direction: "BULLISH" | "BEARISH" | "NEUTRAL" | string;
+  stop_loss?: number;
+  risk_reward_ratio?: number;
   disclaimer: string;
   metrics: BacktestMetrics;
   forecast: ForecastPoint[];

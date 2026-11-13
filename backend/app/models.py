@@ -170,6 +170,9 @@ class HorizonForecastItem(BaseModel):
     target_time_sec: int
     accuracy_score_pct: float = 74.0
     confidence_level: str = "HIGH"
+    stop_loss: float = 0.0
+    stop_loss_pct: float = 0.0
+    risk_reward_ratio: float = 1.5
 
 
 class StockPredictionResponse(BaseModel):
@@ -180,6 +183,8 @@ class StockPredictionResponse(BaseModel):
     forecast_target: float
     expected_change_pct: float
     projected_direction: str  # BULLISH | BEARISH | NEUTRAL
+    stop_loss: float | None = None
+    risk_reward_ratio: float | None = None
     disclaimer: str
     metrics: BacktestMetrics
     forecast: list[ForecastPoint]

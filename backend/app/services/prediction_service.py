@@ -69,6 +69,26 @@ def _build_horizon_matrix(
         l2 = round(max(0.1, target - (vol_spread * 2.0)), 2)
         u2 = round(target + (vol_spread * 2.0), 2)
 
+        # Stoploss and Risk-Reward computation
+        risk_buffer = max(0.003 * current_price, vol_spread * 0.85)
+        if direction == "BULLISH":
+            sl = round(max(0.05, current_price - risk_buffer), 2)
+            sl_pct = round(((sl - current_price) / current_price) * 100, 2)
+            risk = max(0.01, current_price - sl)
+            reward = max(0.01, target - current_price)
+        elif direction == "BEARISH":
+            sl = round(current_price + risk_buffer, 2)
+            sl_pct = round(((sl - current_price) / current_price) * 100, 2)
+            risk = max(0.01, sl - current_price)
+            reward = max(0.01, current_price - target)
+        else:
+            sl = round(max(0.05, current_price - risk_buffer), 2)
+            sl_pct = round(((sl - current_price) / current_price) * 100, 2)
+            risk = max(0.01, current_price - sl)
+            reward = risk
+
+        rr = round(reward / risk, 2)
+
         target_time = last_time + delta_sec
         iso_str = datetime.fromtimestamp(target_time, tz=timezone.utc).isoformat()
 
@@ -91,6 +111,9 @@ def _build_horizon_matrix(
                 target_time_sec=target_time,
                 accuracy_score_pct=h_acc,
                 confidence_level=conf_lvl,
+                stop_loss=sl,
+                stop_loss_pct=sl_pct,
+                risk_reward_ratio=rr,
             )
         )
 
@@ -253,6 +276,22 @@ def get_stock_prediction(
         else:
             proj_dir = "NEUTRAL"
 
+        # Overall forecast stoploss & R:R
+        overall_risk_buffer = max(0.005 * current_price, hist_vol * current_price)
+        if proj_dir == "BULLISH":
+            overall_sl = round(max(0.05, current_price - overall_risk_buffer), 2)
+            overall_risk = max(0.01, current_price - overall_sl)
+            overall_reward = max(0.01, target_price - current_price)
+        elif proj_dir == "BEARISH":
+            overall_sl = round(current_price + overall_risk_buffer, 2)
+            overall_risk = max(0.01, overall_sl - current_price)
+            overall_reward = max(0.01, current_price - target_price)
+        else:
+            overall_sl = round(max(0.05, current_price - overall_risk_buffer), 2)
+            overall_risk = max(0.01, current_price - overall_sl)
+            overall_reward = overall_risk
+        overall_rr = round(overall_reward / overall_risk, 2)
+
         # Generate multi-horizon forecasts: 1m, 5m, 30m, 1h, 1d, 5d
         base_return = float(model.predict(X[-1].reshape(1, -1))[0])
         horizons_list = _build_horizon_matrix(current_price, last_time, base_return, hist_vol, base_acc=dir_acc)
@@ -267,6 +306,8 @@ def get_stock_prediction(
             forecast_target=target_price,
             expected_change_pct=exp_change_pct,
             projected_direction=proj_dir,
+            stop_loss=overall_sl,
+            risk_reward_ratio=overall_rr,
             disclaimer="Educational statistical forecast. Backtest performance is indicative and does not guarantee future results.",
             metrics=BacktestMetrics(
                 directional_accuracy_pct=dir_acc,

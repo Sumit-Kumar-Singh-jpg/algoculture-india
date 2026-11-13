@@ -9,8 +9,10 @@ import {
   Info,
   CheckCircle2,
   Target,
+  ShieldAlert,
   ShieldCheck,
   Activity,
+  ArrowRight,
 } from "lucide-react";
 import type { HorizonForecastItem, StockPredictionResponse } from "@/lib/types";
 import { formatInr } from "@/lib/format";
@@ -50,6 +52,8 @@ export function AiPredictionCard({
 
   const activeHid = selectedHorizonId !== undefined ? selectedHorizonId : internalHorizon;
   const horizons = prediction.horizons ?? [];
+  const currentPrice = prediction.current_price ?? 0;
+
   const currentHorizonItem =
     horizons.find((h) => h.horizon_id === activeHid) ||
     (horizons.length > 0
@@ -57,16 +61,19 @@ export function AiPredictionCard({
       : {
           horizon_id: "default",
           label: "Forecast Target",
-          target_price: prediction.forecast_target ?? prediction.current_price,
-          expected_change: (prediction.forecast_target ?? prediction.current_price) - prediction.current_price,
+          target_price: prediction.forecast_target ?? currentPrice,
+          expected_change: (prediction.forecast_target ?? currentPrice) - currentPrice,
           expected_change_pct: prediction.expected_change_pct ?? 0,
           direction: prediction.projected_direction ?? "NEUTRAL",
-          lower_1sigma: prediction.forecast?.[0]?.lower_1sigma ?? prediction.current_price,
-          upper_1sigma: prediction.forecast?.[0]?.upper_1sigma ?? prediction.current_price,
-          lower_2sigma: prediction.forecast?.[0]?.lower_2sigma ?? prediction.current_price,
-          upper_2sigma: prediction.forecast?.[0]?.upper_2sigma ?? prediction.current_price,
+          lower_1sigma: prediction.forecast?.[0]?.lower_1sigma ?? currentPrice * 0.99,
+          upper_1sigma: prediction.forecast?.[0]?.upper_1sigma ?? currentPrice * 1.01,
+          lower_2sigma: prediction.forecast?.[0]?.lower_2sigma ?? currentPrice * 0.98,
+          upper_2sigma: prediction.forecast?.[0]?.upper_2sigma ?? currentPrice * 1.02,
           target_time_iso: "",
           target_time_sec: 0,
+          stop_loss: prediction.stop_loss ?? Math.max(0.05, currentPrice * 0.99),
+          stop_loss_pct: -1.0,
+          risk_reward_ratio: prediction.risk_reward_ratio ?? 1.5,
         });
 
   const isUp = (currentHorizonItem?.expected_change ?? 0) >= 0;
@@ -82,6 +89,38 @@ export function AiPredictionCard({
   const successfulCalls =
     prediction.metrics?.successful_predictions ??
     Math.round(testedCandles * (horizonAcc / 100));
+
+  // Stop loss and risk-reward calculation
+  const targetPrice = currentHorizonItem.target_price ?? currentPrice;
+  const stopLossPrice =
+    currentHorizonItem.stop_loss && currentHorizonItem.stop_loss > 0
+      ? currentHorizonItem.stop_loss
+      : prediction.stop_loss && prediction.stop_loss > 0
+        ? prediction.stop_loss
+        : Math.round((currentPrice > 0 ? (isUp ? currentPrice * 0.988 : currentPrice * 1.012) : 0) * 100) / 100;
+
+  const slPct =
+    currentHorizonItem.stop_loss_pct !== undefined && currentHorizonItem.stop_loss_pct !== 0
+      ? currentHorizonItem.stop_loss_pct
+      : currentPrice > 0
+        ? Number((((stopLossPrice - currentPrice) / currentPrice) * 100).toFixed(2))
+        : 0;
+
+  const rrRatio =
+    currentHorizonItem.risk_reward_ratio && currentHorizonItem.risk_reward_ratio > 0
+      ? currentHorizonItem.risk_reward_ratio
+      : prediction.risk_reward_ratio && prediction.risk_reward_ratio > 0
+        ? prediction.risk_reward_ratio
+        : 1.5;
+
+  const rrQuality =
+    rrRatio >= 2.0
+      ? { label: "EXCELLENT SETUP", color: "text-emerald-400 bg-emerald-500/15 border-emerald-500/30" }
+      : rrRatio >= 1.5
+        ? { label: "FAVORABLE SETUP", color: "text-sky-300 bg-sky-500/15 border-sky-500/30" }
+        : rrRatio >= 1.0
+          ? { label: "MODERATE RISK", color: "text-amber-300 bg-amber-500/15 border-amber-500/30" }
+          : { label: "SPECULATIVE", color: "text-rose-400 bg-rose-500/15 border-rose-500/30" };
 
   function handlePickHorizon(h: HorizonForecastItem) {
     setInternalHorizon(h.horizon_id);
@@ -107,7 +146,7 @@ export function AiPredictionCard({
               </span>
             </div>
             <span className="text-[10px] text-slate-400">
-              Multi-Horizon Machine Learning
+              Multi-Horizon Machine Learning & Stop Loss
             </span>
           </div>
         </div>
@@ -133,7 +172,7 @@ export function AiPredictionCard({
             <span>Select Forecast Timeframe:</span>
           </div>
           <span className="font-mono text-[10px] text-emerald-400">
-            Accuracy & Win Rate
+            R:R 1:{rrRatio.toFixed(1)}
           </span>
         </div>
         <div className="grid grid-cols-6 gap-1 rounded-lg border border-slate-800 bg-slate-900/90 p-1">
@@ -181,110 +220,174 @@ export function AiPredictionCard({
         </div>
       </div>
 
-      {/* Active Horizon Detailed Target Card */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-        <div className="flex items-baseline justify-between text-xs">
-          <span className="font-semibold text-slate-300">
-            {currentHorizonItem.label} Target
-          </span>
-          <span
-            className={`flex items-center gap-1 font-mono text-xs font-semibold ${
-              isUp ? "text-emerald-400" : "text-rose-400"
-            }`}
-          >
-            {isUp ? (
-              <TrendingUp className="h-3 w-3" />
-            ) : (
-              <TrendingDown className="h-3 w-3" />
-            )}
-            {isUp ? "+" : ""}
-            {(currentHorizonItem.expected_change ?? 0).toFixed(2)} (
-            {isUp ? "+" : ""}
-            {(currentHorizonItem.expected_change_pct ?? 0).toFixed(2)}%)
-          </span>
-        </div>
-
-        <div className="pt-1.5">
-          <span className="font-mono text-2xl font-bold text-white">
-            {formatInr(currentHorizonItem.target_price ?? 0, false)}
-          </span>
-          <span className="ml-2 text-xs text-slate-400">
-            Current: {formatInr(prediction.current_price ?? 0, false)}
-          </span>
-        </div>
-
-        {/* Prediction Accuracy Score Meter */}
-        <div className="mt-2.5 rounded border border-slate-800/80 bg-slate-950/70 p-2.5">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5">
-              <Target className="h-3.5 w-3.5 text-sky-400" />
-              <span className="font-semibold text-slate-200">
-                Prediction Accuracy
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-xs font-bold text-emerald-400">
-                {horizonAcc}%
-              </span>
-              <span
-                className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
-                  confGrade === "HIGH"
-                    ? "border border-emerald-500/30 bg-emerald-500/20 text-emerald-300"
-                    : confGrade === "MODERATE"
-                      ? "border border-sky-500/30 bg-sky-500/20 text-sky-300"
-                      : "border border-amber-500/30 bg-amber-500/20 text-amber-300"
-                }`}
-              >
-                {confGrade} CONFIDENCE
-              </span>
-            </div>
+      {/* Target Price & Stop Loss Dual Analytics Card */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {/* Target Price Card */}
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-2.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="flex items-center gap-1 font-semibold text-emerald-300">
+              <Target className="h-3 w-3 text-emerald-400" />
+              Target Price
+            </span>
+            <span className="font-mono text-[10px] font-semibold text-emerald-400">
+              {isUp ? "+" : ""}
+              {(currentHorizonItem.expected_change_pct ?? 0).toFixed(2)}%
+            </span>
           </div>
+          <div className="mt-1.5">
+            <span className="font-mono text-lg font-bold text-white">
+              {formatInr(targetPrice, false)}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-300/80 font-mono">
+            <span>Diff:</span>
+            <span>
+              {isUp ? "+" : ""}
+              {(currentHorizonItem.expected_change ?? 0).toFixed(2)}
+            </span>
+          </div>
+        </div>
 
-          {/* Visual Accuracy Bar */}
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+        {/* AI Stop Loss Card */}
+        <div className="rounded-lg border border-rose-500/30 bg-rose-950/20 p-2.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="flex items-center gap-1 font-semibold text-rose-300">
+              <ShieldAlert className="h-3 w-3 text-rose-400" />
+              AI Stop Loss
+            </span>
+            <span className="font-mono text-[10px] font-semibold text-rose-400">
+              {slPct > 0 ? `+${slPct.toFixed(2)}%` : `${slPct.toFixed(2)}%`}
+            </span>
+          </div>
+          <div className="mt-1.5">
+            <span className="font-mono text-lg font-bold text-white">
+              {formatInr(stopLossPrice, false)}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-1 text-[10px] text-rose-300/80 font-mono">
+            <span>Risk buffer:</span>
+            <span>{Math.abs(currentPrice - stopLossPrice).toFixed(2)} pts</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Risk-to-Reward Ratio (R:R) Visual Bar */}
+      <div className="mt-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-sky-400" />
+            <span className="font-semibold text-slate-200">Risk : Reward Setup</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-sky-400">
+              1 : {rrRatio.toFixed(2)}
+            </span>
+            <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold ${rrQuality.color}`}>
+              {rrQuality.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Visual Spectrum: Stop Loss <---> Current Entry <---> Target */}
+        <div className="mt-2 space-y-1">
+          <div className="relative flex h-2 w-full overflow-hidden rounded-full bg-slate-800">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                horizonAcc >= 70
-                  ? "bg-gradient-to-r from-sky-500 to-emerald-400"
-                  : horizonAcc >= 58
-                    ? "bg-gradient-to-r from-amber-500 to-sky-400"
-                    : "bg-gradient-to-r from-rose-500 to-amber-400"
-              }`}
-              style={{ width: `${Math.min(100, Math.max(0, horizonAcc))}%` }}
+              className="h-full bg-rose-500"
+              style={{ width: "30%" }}
+              title="Downside Risk Buffer"
+            />
+            <div
+              className="h-full bg-sky-500"
+              style={{ width: "10%" }}
+              title="Entry Price Baseline"
+            />
+            <div
+              className="h-full bg-emerald-500"
+              style={{ width: "60%" }}
+              title="Projected Target Reward"
             />
           </div>
+          <div className="flex items-center justify-between font-mono text-[9px] text-slate-400">
+            <span className="text-rose-400">SL: {formatInr(stopLossPrice, false)}</span>
+            <span className="text-slate-300 font-semibold">Entry: {formatInr(currentPrice, false)}</span>
+            <span className="text-emerald-400">TP: {formatInr(targetPrice, false)}</span>
+          </div>
+        </div>
+      </div>
 
-          <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
-            <span>Walk-forward validation:</span>
-            <span className="font-mono text-slate-300">
-              {successfulCalls} / {testedCandles} Hits ({horizonAcc}%)
+      {/* Prediction Accuracy Score Meter */}
+      <div className="mt-2.5 rounded border border-slate-800/80 bg-slate-950/70 p-2.5">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5">
+            <Target className="h-3.5 w-3.5 text-sky-400" />
+            <span className="font-semibold text-slate-200">
+              Prediction Accuracy
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-xs font-bold text-emerald-400">
+              {horizonAcc}%
+            </span>
+            <span
+              className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                confGrade === "HIGH"
+                  ? "border border-emerald-500/30 bg-emerald-500/20 text-emerald-300"
+                  : confGrade === "MODERATE"
+                    ? "border border-sky-500/30 bg-sky-500/20 text-sky-300"
+                    : "border border-amber-500/30 bg-amber-500/20 text-amber-300"
+              }`}
+            >
+              {confGrade} CONFIDENCE
             </span>
           </div>
         </div>
 
-        {/* Expected Range Cone (1 Sigma) */}
-        <div className="mt-2.5 rounded border border-slate-800/80 bg-slate-950/60 p-2 text-[11px]">
-          <div className="flex items-center justify-between text-slate-400">
-            <span>Expected 1σ Volatility Cone:</span>
-            <span className="font-mono font-medium text-slate-200">
-              {formatInr(currentHorizonItem.lower_1sigma ?? 0, false)} –{" "}
-              {formatInr(currentHorizonItem.upper_1sigma ?? 0, false)}
-            </span>
-          </div>
-          <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Directional Stance:</span>
-            <span
-              className={`font-semibold ${
-                currentHorizonItem.direction === "BULLISH"
-                  ? "text-emerald-400"
-                  : currentHorizonItem.direction === "BEARISH"
-                    ? "text-rose-400"
-                    : "text-slate-300"
-              }`}
-            >
-              {currentHorizonItem.direction ?? "NEUTRAL"}
-            </span>
-          </div>
+        {/* Visual Accuracy Bar */}
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              horizonAcc >= 70
+                ? "bg-gradient-to-r from-sky-500 to-emerald-400"
+                : horizonAcc >= 58
+                  ? "bg-gradient-to-r from-amber-500 to-sky-400"
+                  : "bg-gradient-to-r from-rose-500 to-amber-400"
+            }`}
+            style={{ width: `${Math.min(100, Math.max(0, horizonAcc))}%` }}
+          />
+        </div>
+
+        <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+          <span>Walk-forward validation:</span>
+          <span className="font-mono text-slate-300">
+            {successfulCalls} / {testedCandles} Hits ({horizonAcc}%)
+          </span>
+        </div>
+      </div>
+
+      {/* Expected Range Cone (1 Sigma) & Directional Stance */}
+      <div className="mt-2.5 rounded border border-slate-800/80 bg-slate-950/60 p-2 text-[11px]">
+        <div className="flex items-center justify-between text-slate-400">
+          <span>Expected 1σ Volatility Cone:</span>
+          <span className="font-mono font-medium text-slate-200">
+            {formatInr(currentHorizonItem.lower_1sigma ?? 0, false)} –{" "}
+            {formatInr(currentHorizonItem.upper_1sigma ?? 0, false)}
+          </span>
+        </div>
+        <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
+          <span>Directional Stance:</span>
+          <span
+            className={`font-semibold ${
+              currentHorizonItem.direction === "BULLISH"
+                ? "text-emerald-400"
+                : currentHorizonItem.direction === "BEARISH"
+                  ? "text-rose-400"
+                  : "text-slate-300"
+            }`}
+          >
+            {currentHorizonItem.direction === "BULLISH" && "BULLISH (Long Bias)"}
+            {currentHorizonItem.direction === "BEARISH" && "BEARISH (Short Bias)"}
+            {currentHorizonItem.direction !== "BULLISH" && currentHorizonItem.direction !== "BEARISH" && "NEUTRAL / RANGEBOUND"}
+          </span>
         </div>
       </div>
 
@@ -323,7 +426,7 @@ export function AiPredictionCard({
       <div className="mt-3 flex items-start gap-1.5 text-[10px] text-slate-500">
         <Info className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" />
         <span>
-          Auto-regressive Ridge + Volatility Cone projection. Educational research only; not financial advice.
+          Auto-regressive Ridge + Volatility Cone projection. Stop loss is statistically generated for educational risk management; not SEBI investment advice.
         </span>
       </div>
     </div>
