@@ -173,7 +173,10 @@ def get_stock_news(
         items.sort(key=lambda a: a.time_sec, reverse=True)
         return items
 
-    articles, cached_at, stale = _news_cache.get_or_fetch(cache_key, _fetch_and_aggregate)
+    try:
+        articles, cached_at, stale = _news_cache.get_or_fetch(cache_key, _fetch_and_aggregate)
+    except Exception:
+        articles, cached_at, stale = [], datetime.now(timezone.utc).isoformat(), True
 
     # Apply timeframe filter
     now_sec = int(datetime.now(timezone.utc).timestamp())
