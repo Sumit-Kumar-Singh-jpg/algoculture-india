@@ -16,4 +16,6 @@ build/
 
 # Logs & OS
 *.log
+*.tsbuildinfo
+.pytest_cache/
 .DS_Store
