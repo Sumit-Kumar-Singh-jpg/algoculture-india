@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import {
+  X,
   Sparkles,
   Phone,
   User,
@@ -106,11 +107,23 @@ export function TrialOnboardingModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={closeOnboardingModal}
+    >
       <div
         className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-sky-500/30 bg-[#0d1424] p-6 shadow-2xl transition-all"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={closeOnboardingModal}
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition"
+          aria-label="Close dialog"
+        >
+          <X className="h-5 w-5" />
+        </button>
         {/* Banner Glow */}
         <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-sky-500/10 blur-3xl" />
 

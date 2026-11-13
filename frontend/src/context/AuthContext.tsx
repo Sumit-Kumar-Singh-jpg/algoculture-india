@@ -76,11 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         setProfile(data as UserProfile);
         calculateTrialTime(data.trial_ends_at);
-        setIsOnboardingModalOpen(false);
       } else {
         // User logged in but has not yet completed phone & personal details
         setProfile(null);
-        setIsOnboardingModalOpen(true);
       }
     } catch (err) {
       console.warn("Error refreshing profile:", err);
