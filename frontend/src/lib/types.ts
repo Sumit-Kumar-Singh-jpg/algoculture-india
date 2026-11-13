@@ -217,5 +217,19 @@ export interface StockNewsResponse {
   stale: boolean;
 }
 
+export interface UserProfile {
+  user_id: string;
+  full_name: string;
+  phone_number: string;
+  city_or_state?: string;
+  trading_experience?: string;
+  primary_segment?: string;
+  trial_started_at: string;
+  trial_ends_at: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+
 
 
