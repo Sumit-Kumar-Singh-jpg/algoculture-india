@@ -313,44 +313,86 @@ export function StockChartCanvas({
 
     // --- AI Forecast Overlay ---
     if (aiPredictionData && aiPredictionData.length > 0) {
-      if (!forecastSeriesRef.current) {
-        forecastSeriesRef.current = chart.addLineSeries({
-          color: "#38bdf8",
-          lineWidth: 2,
-          lineStyle: 2,
-          title: "AI Forecast",
-        });
-      }
-      if (!upperBandRef.current) {
-        upperBandRef.current = chart.addLineSeries({
-          color: "#38bdf844",
-          lineWidth: 1,
-          lineStyle: 3,
-          title: "+1σ Band",
-        });
-      }
-      if (!lowerBandRef.current) {
-        lowerBandRef.current = chart.addLineSeries({
-          color: "#38bdf844",
-          lineWidth: 1,
-          lineStyle: 3,
-          title: "-1σ Band",
-        });
-      }
+      try {
+        const lastCandleTime = candles[candles.length - 1]?.time ?? 0;
+        const validForecast = aiPredictionData
+          .filter(
+            (p) =>
+              p &&
+              typeof p.time === "number" &&
+              !isNaN(p.time) &&
+              p.time > lastCandleTime &&
+              typeof p.price === "number" &&
+              !isNaN(p.price)
+          )
+          .sort((a, b) => a.time - b.time);
 
-      forecastSeriesRef.current.setData(
-        aiPredictionData.map((p) => ({ time: p.time as Time, value: p.price }))
-      );
-      upperBandRef.current.setData(
-        aiPredictionData
-          .filter((p) => p.upper1 !== undefined)
-          .map((p) => ({ time: p.time as Time, value: p.upper1! }))
-      );
-      lowerBandRef.current.setData(
-        aiPredictionData
-          .filter((p) => p.lower1 !== undefined)
-          .map((p) => ({ time: p.time as Time, value: p.lower1! }))
-      );
+        // Deduplicate timestamps
+        const uniqueForecast: typeof validForecast = [];
+        const seenTimes = new Set<number>();
+        for (const pt of validForecast) {
+          if (!seenTimes.has(pt.time)) {
+            seenTimes.add(pt.time);
+            uniqueForecast.push(pt);
+          }
+        }
+
+        if (uniqueForecast.length > 0) {
+          if (!forecastSeriesRef.current) {
+            forecastSeriesRef.current = chart.addLineSeries({
+              color: "#38bdf8",
+              lineWidth: 2,
+              lineStyle: 2,
+              title: "AI Forecast",
+            });
+          }
+          if (!upperBandRef.current) {
+            upperBandRef.current = chart.addLineSeries({
+              color: "#38bdf844",
+              lineWidth: 1,
+              lineStyle: 3,
+              title: "+1σ Band",
+            });
+          }
+          if (!lowerBandRef.current) {
+            lowerBandRef.current = chart.addLineSeries({
+              color: "#38bdf844",
+              lineWidth: 1,
+              lineStyle: 3,
+              title: "-1σ Band",
+            });
+          }
+
+          forecastSeriesRef.current.setData(
+            uniqueForecast.map((p) => ({ time: p.time as Time, value: p.price }))
+          );
+          upperBandRef.current.setData(
+            uniqueForecast
+              .filter((p) => p.upper1 !== undefined && !isNaN(p.upper1))
+              .map((p) => ({ time: p.time as Time, value: p.upper1! }))
+          );
+          lowerBandRef.current.setData(
+            uniqueForecast
+              .filter((p) => p.lower1 !== undefined && !isNaN(p.lower1))
+              .map((p) => ({ time: p.time as Time, value: p.lower1! }))
+          );
+        } else {
+          if (forecastSeriesRef.current) {
+            chart.removeSeries(forecastSeriesRef.current);
+            forecastSeriesRef.current = null;
+          }
+          if (upperBandRef.current) {
+            chart.removeSeries(upperBandRef.current);
+            upperBandRef.current = null;
+          }
+          if (lowerBandRef.current) {
+            chart.removeSeries(lowerBandRef.current);
+            lowerBandRef.current = null;
+          }
+        }
+      } catch (err) {
+        console.warn("Forecast overlay render notice:", err);
+      }
     } else {
       if (forecastSeriesRef.current) {
         chart.removeSeries(forecastSeriesRef.current);

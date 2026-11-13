@@ -286,21 +286,56 @@ export default function HomePage() {
       return null;
     }
     const lastCandle = history.candles[history.candles.length - 1];
-    const targetItem = activeHorizonItem;
-    if (!targetItem) {
-      return prediction.forecast.map((f) => ({
-        time: f.time,
-        price: f.predicted,
-        lower1: f.lower_1sigma,
-        upper1: f.upper_1sigma,
-      }));
+    if (!lastCandle || typeof lastCandle.time !== "number" || isNaN(lastCandle.time)) {
+      return null;
     }
 
-    const startT = lastCandle.time;
-    const endT = targetItem.target_time_sec;
-    const startP = prediction.current_price;
-    const endP = targetItem.target_price;
-    const endSpread = Math.abs(targetItem.upper_1sigma - endP);
+    const startT = Number(lastCandle.time);
+    const startP = Number(prediction.current_price ?? lastCandle.close);
+
+    const targetItem = activeHorizonItem;
+    if (!targetItem) {
+      if (!Array.isArray(prediction.forecast) || prediction.forecast.length === 0) {
+        return null;
+      }
+      return prediction.forecast
+        .filter(
+          (f) =>
+            f &&
+            typeof f.time === "number" &&
+            !isNaN(f.time) &&
+            f.time > startT &&
+            typeof f.predicted === "number" &&
+            !isNaN(f.predicted)
+        )
+        .map((f) => ({
+          time: Number(f.time),
+          price: Number(f.predicted),
+          lower1: Number(f.lower_1sigma ?? f.predicted),
+          upper1: Number(f.upper_1sigma ?? f.predicted),
+        }));
+    }
+
+    const horizonDurations: Record<string, number> = {
+      "1m": 60,
+      "5m": 300,
+      "30m": 1800,
+      "1h": 3600,
+      "1d": 86400,
+      "5d": 432000,
+    };
+    const durationSec =
+      horizonDurations[targetItem.horizon_id] ??
+      (targetItem.target_time_sec && targetItem.target_time_sec > startT
+        ? targetItem.target_time_sec - startT
+        : 300);
+
+    const endT = startT + Math.max(60, durationSec);
+    const endP = Number(targetItem.target_price ?? startP);
+    const endSpread = Math.max(
+      0.01,
+      Math.abs(Number(targetItem.upper_1sigma ?? endP * 1.01) - endP)
+    );
 
     const steps =
       targetItem.horizon_id === "1m"
