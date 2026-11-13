@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -101,6 +103,40 @@ FNO_ELIGIBLE_SYMBOLS: frozenset[str] = frozenset(
 )
 
 
+def _load_all_nse_equities() -> tuple[StockEntry, ...]:
+    entries: list[StockEntry] = list(POPULAR_STOCKS)
+    seen = {e.symbol for e in entries}
+
+    json_path = Path(__file__).parent / "nse_equities.json"
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for item in data:
+                sym = item.get("symbol", "").strip()
+                name = item.get("name", "").strip()
+                if sym and sym not in seen:
+                    entries.append(
+                        StockEntry(
+                            symbol=sym,
+                            yahoo_symbol=f"{sym}.NS",
+                            name=name,
+                            exchange="NSE",
+                            sector="Equity",
+                            is_fno=sym in FNO_ELIGIBLE_SYMBOLS,
+                            is_index=False,
+                        )
+                    )
+                    seen.add(sym)
+        except Exception:
+            pass
+    return tuple(entries)
+
+
+ALL_NSE_STOCKS: tuple[StockEntry, ...] = _load_all_nse_equities()
+ALL_STOCKS_BY_SYMBOL: dict[str, StockEntry] = {item.symbol: item for item in ALL_NSE_STOCKS}
+
+
 def resolve_symbol(raw_symbol: str) -> tuple[str, str, str, str, bool, bool]:
     """
     Resolve a user-supplied ticker into:
@@ -118,8 +154,8 @@ def resolve_symbol(raw_symbol: str) -> tuple[str, str, str, str, bool, bool]:
         base = cleaned[:-3]
         explicit_exchange = "BSE"
 
-    if base in STOCK_BY_SYMBOL and explicit_exchange != "BSE":
-        entry = STOCK_BY_SYMBOL[base]
+    if base in ALL_STOCKS_BY_SYMBOL and explicit_exchange != "BSE":
+        entry = ALL_STOCKS_BY_SYMBOL[base]
         return (
             entry.symbol,
             entry.yahoo_symbol,
@@ -130,7 +166,7 @@ def resolve_symbol(raw_symbol: str) -> tuple[str, str, str, str, bool, bool]:
         )
 
     if explicit_exchange == "BSE":
-        entry = STOCK_BY_SYMBOL.get(base)
+        entry = ALL_STOCKS_BY_SYMBOL.get(base)
         return (
             f"{base}.BO",
             f"{base}.BO",

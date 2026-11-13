@@ -14,6 +14,7 @@ from app.config import (
     get_nse_market_status,
 )
 from app.data.symbols import (
+    ALL_NSE_STOCKS,
     FNO_ELIGIBLE_SYMBOLS,
     POPULAR_STOCKS,
     resolve_symbol,
@@ -196,6 +197,33 @@ def get_stock_quote(raw_symbol: str) -> StockQuoteResponse:
 
 
 def _fetch_remote_search(query: str) -> list[StockSearchItem]:
+    # Try yf.Search first (anti-429 session handling)
+    try:
+        s = yf.Search(query, max_results=15)
+        items: list[StockSearchItem] = []
+        for quote in s.quotes:
+            y_sym = str(quote.get("symbol") or "").upper()
+            if not (y_sym.endswith(".NS") or y_sym.endswith(".BO") or y_sym in {"^NSEI", "^NSEBANK", "^BSESN", "^INDIAVIX"}):
+                continue
+            exchange = "BSE" if y_sym.endswith(".BO") else ("INDEX" if y_sym.startswith("^") else "NSE")
+            base_symbol = y_sym[:-3] if y_sym.endswith((".NS", ".BO")) else y_sym
+            items.append(
+                StockSearchItem(
+                    symbol=y_sym if exchange == "BSE" else base_symbol,
+                    yahoo_symbol=y_sym,
+                    name=quote.get("longname") or quote.get("shortname") or base_symbol,
+                    exchange=exchange,
+                    sector=quote.get("sectorDisp") or quote.get("quoteType") or "Equity",
+                    is_fno=base_symbol in FNO_ELIGIBLE_SYMBOLS,
+                    is_index=y_sym.startswith("^"),
+                )
+            )
+        if items:
+            return items
+    except Exception:
+        pass
+
+    # Direct query fallback
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     params = {"q": query, "quotesCount": 15, "newsCount": 0, "region": "IN"}
     with httpx.Client(timeout=5.0, headers=headers, follow_redirects=True) as client:
@@ -224,7 +252,7 @@ def _fetch_remote_search(query: str) -> list[StockSearchItem]:
     return items
 
 
-def search_stocks(query: str, limit: int = 12) -> list[StockSearchItem]:
+def search_stocks(query: str, limit: int = 15) -> list[StockSearchItem]:
     cleaned = query.strip()
     if not cleaned:
         return [
@@ -244,9 +272,9 @@ def search_stocks(query: str, limit: int = 12) -> list[StockSearchItem]:
     local_matches: list[StockSearchItem] = []
     seen_yahoo: set[str] = set()
 
-    # Exact prefix matches first, then substring matches
+    # Exact prefix matches first, then substring matches across ALL 2,400+ NSE stocks
     scored: list[tuple[int, StockSearchItem]] = []
-    for entry in POPULAR_STOCKS:
+    for entry in ALL_NSE_STOCKS:
         sym_l = entry.symbol.lower()
         name_l = entry.name.lower()
         if sym_l == q_lower:
@@ -255,7 +283,7 @@ def search_stocks(query: str, limit: int = 12) -> list[StockSearchItem]:
             score = 1
         elif name_l.startswith(q_lower):
             score = 2
-        elif q_lower in sym_l or q_lower in name_l or q_lower in entry.sector.lower():
+        elif q_lower in sym_l or q_lower in name_l:
             score = 3
         else:
             continue
@@ -283,7 +311,7 @@ def search_stocks(query: str, limit: int = 12) -> list[StockSearchItem]:
     if len(local_matches) >= limit:
         return local_matches[:limit]
 
-    # Supplement with remote Yahoo Finance search for any NSE/BSE ticker outside the curated list
+    # Supplement with remote search for any other BSE / global symbol
     try:
         remote_items, _, _ = _search_cache.get_or_fetch(
             f"search:{q_lower}",
@@ -296,7 +324,6 @@ def search_stocks(query: str, limit: int = 12) -> list[StockSearchItem]:
                 if len(local_matches) >= limit:
                     break
     except Exception:
-        # Local curated search remains responsive even if remote search is offline
         pass
 
     return local_matches[:limit]
