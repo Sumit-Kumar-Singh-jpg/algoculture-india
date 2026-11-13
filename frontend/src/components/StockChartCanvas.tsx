@@ -217,23 +217,58 @@ export function StockChartCanvas({
 
     // 7. News Event Pins on Long-Term Chart (OPT-01)
     if (newsEvents && newsEvents.length > 0 && mode === "longterm") {
-      const markers = newsEvents
-        .filter((ev) => candles.some((c) => Math.abs(c.time - ev.time) <= 86400 * 2))
-        .map((ev) => {
-          // Find closest candle time
+      // TradingView requirement: Markers MUST have unique times and be sorted in strictly ascending order
+      const eventByTime = new Map<number, { sentiment: string; count: number }>();
+
+      for (const ev of newsEvents) {
+        const matchingCandle = candles.find(
+          (c) => Math.abs(c.time - ev.time) <= 86400 * 2
+        );
+        if (matchingCandle) {
           const closest = candles.reduce((prev, curr) =>
-            Math.abs(curr.time - ev.time) < Math.abs(prev.time - ev.time) ? curr : prev
+            Math.abs(curr.time - ev.time) < Math.abs(prev.time - ev.time)
+              ? curr
+              : prev
           );
-          return {
-            time: closest.time as Time,
-            position: "aboveBar" as const,
-            color: ev.sentiment === "BULLISH" ? "#10b981" : ev.sentiment === "BEARISH" ? "#f43f5e" : "#38bdf8",
-            shape: "circle" as const,
-            text: "News",
-          };
-        });
+          const existing = eventByTime.get(closest.time);
+          if (existing) {
+            existing.count += 1;
+            // Elevate sentiment if bullish/bearish
+            if (ev.sentiment === "BULLISH" && existing.sentiment !== "BULLISH") {
+              existing.sentiment = "BULLISH";
+            } else if (ev.sentiment === "BEARISH" && existing.sentiment === "NEUTRAL") {
+              existing.sentiment = "BEARISH";
+            }
+          } else {
+            eventByTime.set(closest.time, { sentiment: ev.sentiment, count: 1 });
+          }
+        }
+      }
+
+      // Convert map to sorted markers
+      const sortedTimes = Array.from(eventByTime.keys()).sort((a, b) => a - b);
+      const markers = sortedTimes.map((t) => {
+        const item = eventByTime.get(t)!;
+        return {
+          time: t as Time,
+          position: "aboveBar" as const,
+          color:
+            item.sentiment === "BULLISH"
+              ? "#10b981"
+              : item.sentiment === "BEARISH"
+                ? "#f43f5e"
+                : "#38bdf8",
+          shape: "circle" as const,
+          text: item.count > 1 ? `News (${item.count})` : "News",
+        };
+      });
+
       if (markers.length > 0) {
-        candleSeries.setMarkers(markers);
+        try {
+          candleSeries.setMarkers(markers);
+        } catch (err) {
+          console.warn("Failed to set chart markers:", err);
+        }
       }
     }
 
