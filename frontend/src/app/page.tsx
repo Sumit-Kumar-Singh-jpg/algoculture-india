@@ -32,6 +32,7 @@ import { AiPredictionCard } from "@/components/AiPredictionCard";
 import { StockNewsPanel } from "@/components/StockNewsPanel";
 import { UserNav } from "@/components/UserNav";
 import { ChartStudioModal } from "@/components/ChartStudioModal";
+import { IndicatorsDialog } from "@/components/IndicatorsDialog";
 
 const DEFAULT_WATCHLIST: WatchlistEntry[] = [
   { symbol: "NIFTY", name: "NIFTY 50 Index", exchange: "NSE" },
@@ -80,6 +81,29 @@ export default function HomePage() {
 
   // Interactive Chart & Drawing Studio state
   const [isChartStudioOpen, setIsChartStudioOpen] = useState(false);
+
+  // Technical Indicators Suite state
+  const [activeIndicators, setActiveIndicators] = useState<string[]>([
+    "vwap",
+    "ema9",
+    "ema21",
+    "volume",
+  ]);
+  const [isIndicatorsDialogOpen, setIsIndicatorsDialogOpen] = useState(false);
+
+  const handleToggleIndicator = useCallback((id: string) => {
+    setActiveIndicators((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  }, []);
+
+  const handleClearAllIndicators = useCallback(() => {
+    setActiveIndicators([]);
+  }, []);
+
+  const handleResetDefaultIndicators = useCallback(() => {
+    setActiveIndicators(["vwap", "ema9", "ema21", "volume"]);
+  }, []);
 
   // Load watchlist from localStorage
   useEffect(() => {
@@ -509,16 +533,16 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Quick Indicator Toggles */}
+            {/* Quick Indicator Toggles & Studies Dialog Launcher */}
             <div className="flex items-center gap-1.5 pl-2 text-[11px]">
               {activeMode === "intraday" && (
                 <button
                   type="button"
-                  onClick={() => setShowVwap(!showVwap)}
+                  onClick={() => handleToggleIndicator("vwap")}
                   className={`rounded border px-2 py-1 transition ${
-                    showVwap
-                      ? "border-amber-500/50 bg-amber-500/15 text-amber-300"
-                      : "border-slate-800 bg-slate-900 text-slate-500"
+                    activeIndicators.includes("vwap")
+                      ? "border-amber-500/50 bg-amber-500/15 text-amber-300 font-semibold"
+                      : "border-slate-800 bg-slate-900 text-slate-500 hover:text-slate-300"
                   }`}
                 >
                   VWAP
@@ -526,11 +550,23 @@ export default function HomePage() {
               )}
               <button
                 type="button"
-                onClick={() => setShowEma(!showEma)}
+                onClick={() => {
+                  const hasBoth =
+                    activeIndicators.includes("ema9") && activeIndicators.includes("ema21");
+                  if (hasBoth) {
+                    setActiveIndicators((prev) =>
+                      prev.filter((i) => i !== "ema9" && i !== "ema21")
+                    );
+                  } else {
+                    setActiveIndicators((prev) =>
+                      Array.from(new Set([...prev, "ema9", "ema21"]))
+                    );
+                  }
+                }}
                 className={`rounded border px-2 py-1 transition ${
-                  showEma
-                    ? "border-sky-500/50 bg-sky-500/15 text-sky-300"
-                    : "border-slate-800 bg-slate-900 text-slate-500"
+                  activeIndicators.includes("ema9") || activeIndicators.includes("ema21")
+                    ? "border-sky-500/50 bg-sky-500/15 text-sky-300 font-semibold"
+                    : "border-slate-800 bg-slate-900 text-slate-500 hover:text-slate-300"
                 }`}
               >
                 EMA 9/21
@@ -538,11 +574,23 @@ export default function HomePage() {
               {activeMode === "longterm" && (
                 <button
                   type="button"
-                  onClick={() => setShowDma(!showDma)}
+                  onClick={() => {
+                    const hasBoth =
+                      activeIndicators.includes("sma50") && activeIndicators.includes("sma200");
+                    if (hasBoth) {
+                      setActiveIndicators((prev) =>
+                        prev.filter((i) => i !== "sma50" && i !== "sma200")
+                      );
+                    } else {
+                      setActiveIndicators((prev) =>
+                        Array.from(new Set([...prev, "sma50", "sma200"]))
+                      );
+                    }
+                  }}
                   className={`rounded border px-2 py-1 transition ${
-                    showDma
-                      ? "border-purple-500/50 bg-purple-500/15 text-purple-300"
-                      : "border-slate-800 bg-slate-900 text-slate-500"
+                    activeIndicators.includes("sma50") || activeIndicators.includes("sma200")
+                      ? "border-purple-500/50 bg-purple-500/15 text-purple-300 font-semibold"
+                      : "border-slate-800 bg-slate-900 text-slate-500 hover:text-slate-300"
                   }`}
                 >
                   50/200 DMA
@@ -550,14 +598,28 @@ export default function HomePage() {
               )}
               <button
                 type="button"
-                onClick={() => setShowVolume(!showVolume)}
+                onClick={() => handleToggleIndicator("volume")}
                 className={`rounded border px-2 py-1 transition ${
-                  showVolume
-                    ? "border-slate-700 bg-slate-800 text-slate-300"
-                    : "border-slate-800 bg-slate-900 text-slate-500"
+                  activeIndicators.includes("volume")
+                    ? "border-slate-700 bg-slate-800 text-slate-200 font-semibold"
+                    : "border-slate-800 bg-slate-900 text-slate-500 hover:text-slate-300"
                 }`}
               >
                 Vol
+              </button>
+
+              {/* All Indicators & Studies Dialog Button */}
+              <button
+                type="button"
+                onClick={() => setIsIndicatorsDialogOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-300 hover:bg-sky-500/25 transition shadow-sm ml-1"
+                title="Open Technical Indicators & Studies (22+ Indicators)"
+              >
+                <span className="font-mono font-bold text-sky-400">fx</span>
+                <span>Indicators</span>
+                <span className="rounded-full bg-sky-500/30 px-1.5 py-0.2 font-mono text-[10px] text-white">
+                  {activeIndicators.length}
+                </span>
               </button>
             </div>
           </div>
@@ -619,6 +681,10 @@ export default function HomePage() {
                 candles={history?.candles ?? []}
                 mode={activeMode}
                 livePrice={quote?.ltp}
+                activeIndicators={activeIndicators}
+                onToggleIndicator={handleToggleIndicator}
+                onClearAllIndicators={handleClearAllIndicators}
+                onResetDefaultIndicators={handleResetDefaultIndicators}
                 showVwap={showVwap}
                 showEma={showEma}
                 showDma={showDma}
@@ -699,6 +765,10 @@ export default function HomePage() {
         mode={activeMode}
         livePrice={quote?.ltp}
         prevClose={quote?.prev_close}
+        activeIndicators={activeIndicators}
+        onToggleIndicator={handleToggleIndicator}
+        onClearAllIndicators={handleClearAllIndicators}
+        onResetDefaultIndicators={handleResetDefaultIndicators}
         showVwap={showVwap}
         onToggleVwap={() => setShowVwap(!showVwap)}
         showEma={showEma}
@@ -713,6 +783,16 @@ export default function HomePage() {
             ? (activeHorizonItem?.stop_loss ?? prediction?.stop_loss ?? undefined)
             : undefined
         }
+      />
+
+      {/* Standalone Technical Indicators Studies Dialog */}
+      <IndicatorsDialog
+        isOpen={isIndicatorsDialogOpen}
+        onClose={() => setIsIndicatorsDialogOpen(false)}
+        activeIndicatorIds={activeIndicators}
+        onToggleIndicator={handleToggleIndicator}
+        onClearAll={handleClearAllIndicators}
+        onResetDefaults={handleResetDefaultIndicators}
       />
     </div>
   );

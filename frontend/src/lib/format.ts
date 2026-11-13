@@ -9,9 +9,20 @@ export function formatInr(value: number | null | undefined, showSymbol = true): 
   return showSymbol ? `₹${formatted}` : formatted;
 }
 
-export function formatSignedChange(change: number, changePct: number): string {
+export function formatSignedChange(
+  change: number | null | undefined,
+  changePct: number | null | undefined
+): string {
+  if (change === null || change === undefined || Number.isNaN(change)) {
+    return "—";
+  }
+  const pct =
+    changePct !== null && changePct !== undefined && !Number.isNaN(changePct)
+      ? changePct
+      : 0;
   const sign = change > 0 ? "+" : "";
-  return `${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%)`;
+  const pctSign = pct > 0 ? "+" : "";
+  return `${sign}${change.toFixed(2)} (${pctSign}${pct.toFixed(2)}%)`;
 }
 
 export function formatIndianVolume(volume: number | null | undefined): string {

@@ -38,6 +38,9 @@ import {
   DrawingToolType,
   DrawingItem,
 } from "./DrawingCanvasOverlay";
+import { IndicatorsDialog } from "./IndicatorsDialog";
+import { INDICATOR_REGISTRY } from "@/lib/technicalIndicators";
+import { syncChartIndicators, cleanupAllIndicatorSeries } from "@/lib/chartIndicatorRenderer";
 
 interface ChartStudioModalProps {
   isOpen: boolean;
@@ -51,14 +54,18 @@ interface ChartStudioModalProps {
   mode: TradingMode;
   livePrice?: number;
   prevClose?: number;
-  showVwap: boolean;
-  onToggleVwap: () => void;
-  showEma: boolean;
-  onToggleEma: () => void;
-  showDma: boolean;
-  onToggleDma: () => void;
-  showVolume: boolean;
-  onToggleVolume: () => void;
+  activeIndicators?: string[];
+  onToggleIndicator?: (id: string) => void;
+  onClearAllIndicators?: () => void;
+  onResetDefaultIndicators?: () => void;
+  showVwap?: boolean;
+  onToggleVwap?: () => void;
+  showEma?: boolean;
+  onToggleEma?: () => void;
+  showDma?: boolean;
+  onToggleDma?: () => void;
+  showVolume?: boolean;
+  onToggleVolume?: () => void;
   aiPredictionData?: Array<{ time: number; price: number; lower1?: number; upper1?: number }> | null;
   stopLossPrice?: number;
 }
@@ -84,6 +91,10 @@ export function ChartStudioModal({
   mode,
   livePrice,
   prevClose,
+  activeIndicators: activeIndicatorsProp,
+  onToggleIndicator,
+  onClearAllIndicators,
+  onResetDefaultIndicators,
   showVwap,
   onToggleVwap,
   showEma,
@@ -98,14 +109,44 @@ export function ChartStudioModal({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
+  // Active indicators state
+  const [internalIndicators, setInternalIndicators] = useState<string[]>([
+    "vwap",
+    "ema9",
+    "ema21",
+    "volume",
+  ]);
+  const activeIndicatorIds = activeIndicatorsProp ?? internalIndicators;
+
+  const handleToggleIndicator = (id: string) => {
+    if (onToggleIndicator) {
+      onToggleIndicator(id);
+    } else {
+      setInternalIndicators((prev) =>
+        prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      );
+    }
+  };
+
+  const handleClearAllIndicators = () => {
+    if (onClearAllIndicators) {
+      onClearAllIndicators();
+    } else {
+      setInternalIndicators([]);
+    }
+  };
+
+  const handleResetDefaultIndicators = () => {
+    if (onResetDefaultIndicators) {
+      onResetDefaultIndicators();
+    } else {
+      setInternalIndicators(["vwap", "ema9", "ema21", "volume"]);
+    }
+  };
+
   // Series refs
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
-  const vwapSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const ema9SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const ema21SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const dma50SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const dma200SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const indicatorSeriesMapRef = useRef<Map<string, ISeriesApi<any>[]>>(new Map());
   const forecastSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const stopLossSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
 
@@ -211,18 +252,15 @@ export function ChartStudioModal({
     return () => {
       window.removeEventListener("resize", updateDimensions);
       try {
-        if (chart) chart.remove();
+        if (chart) {
+          cleanupAllIndicatorSeries(chart, indicatorSeriesMapRef.current);
+          chart.remove();
+        }
       } catch {
         // ignore
       }
       chartRef.current = null;
       candleSeriesRef.current = null;
-      volumeSeriesRef.current = null;
-      vwapSeriesRef.current = null;
-      ema9SeriesRef.current = null;
-      ema21SeriesRef.current = null;
-      dma50SeriesRef.current = null;
-      dma200SeriesRef.current = null;
       forecastSeriesRef.current = null;
       stopLossSeriesRef.current = null;
     };
@@ -273,92 +311,13 @@ export function ChartStudioModal({
 
       candleSeriesRef.current.setData(candleData);
 
-      // Volume
-      if (showVolume) {
-        if (!volumeSeriesRef.current) {
-          volumeSeriesRef.current = chart.addHistogramSeries({
-            color: "#38bdf844",
-            priceFormat: { type: "volume" },
-            priceScaleId: "",
-          });
-          volumeSeriesRef.current.priceScale().applyOptions({
-            scaleMargins: { top: 0.8, bottom: 0 },
-          });
-        }
-        volumeSeriesRef.current.setData(
-          sanitized.map((c) => ({
-            time: c.time as Time,
-            value: c.volume || 0,
-            color: c.close >= c.open ? "#10b98133" : "#f43f5e33",
-          }))
-        );
-      } else if (volumeSeriesRef.current) {
-        chart.removeSeries(volumeSeriesRef.current);
-        volumeSeriesRef.current = null;
-      }
-
-      // VWAP
-      if (showVwap && mode === "intraday") {
-        if (!vwapSeriesRef.current) {
-          vwapSeriesRef.current = chart.addLineSeries({
-            color: "#f59e0b",
-            lineWidth: 1,
-            title: "VWAP",
-          });
-        }
-        vwapSeriesRef.current.setData(
-          sanitized
-            .filter((c) => typeof c.vwap === "number")
-            .map((c) => ({ time: c.time as Time, value: c.vwap! }))
-        );
-      } else if (vwapSeriesRef.current) {
-        chart.removeSeries(vwapSeriesRef.current);
-        vwapSeriesRef.current = null;
-      }
-
-      // EMA
-      if (showEma) {
-        if (!ema9SeriesRef.current) {
-          ema9SeriesRef.current = chart.addLineSeries({
-            color: "#38bdf8",
-            lineWidth: 1,
-            title: "EMA 9",
-          });
-        }
-        if (!ema21SeriesRef.current) {
-          ema21SeriesRef.current = chart.addLineSeries({
-            color: "#ec4899",
-            lineWidth: 1,
-            title: "EMA 21",
-          });
-        }
-        ema9SeriesRef.current.setData(
-          sanitized
-            .filter((c) => typeof c.ema9 === "number")
-            .map((c) => ({ time: c.time as Time, value: c.ema9! }))
-        );
-        ema21SeriesRef.current.setData(
-          sanitized
-            .filter((c) => typeof c.ema21 === "number")
-            .map((c) => ({ time: c.time as Time, value: c.ema21! }))
-        );
-      }
-
-      // DMA
-      if (showDma && mode === "longterm") {
-        if (!dma50SeriesRef.current) {
-          dma50SeriesRef.current = chart.addLineSeries({
-            color: "#a855f7",
-            lineWidth: 1,
-            title: "50 DMA",
-          });
-        }
-        dma50SeriesRef.current.setData(
-          sanitized
-            .filter((c) => typeof c.sma50 === "number")
-            .map((c) => ({ time: c.time as Time, value: c.sma50! }))
-        );
-      }
+      // Sync all 22+ active technical indicators via chartIndicatorRenderer
+      syncChartIndicators(
+        chart,
+        sanitized,
+        activeIndicatorIds,
+        indicatorSeriesMapRef.current
+      );
 
       // Initial legend
       const last = sanitized[sanitized.length - 1];
@@ -377,7 +336,7 @@ export function ChartStudioModal({
     } catch (err) {
       console.warn("Studio chart render notice:", err);
     }
-  }, [candles, mode, livePrice, showVwap, showEma, showDma, showVolume, isOpen]);
+  }, [candles, mode, livePrice, activeIndicatorIds, isOpen]);
 
   function handleUndo() {
     if (undoStack.length === 0) return;
@@ -452,62 +411,18 @@ export function ChartStudioModal({
           <div className="h-5 w-px bg-slate-800" />
 
           {/* Indicators Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIndicatorMenuOpen(!indicatorMenuOpen)}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:border-slate-700 hover:text-white transition"
-            >
-              <span className="font-mono text-sky-400 font-bold">fx</span>
-              <span>Indicators</span>
-              <ChevronDown className="h-3 w-3 text-slate-400" />
-            </button>
-
-            {indicatorMenuOpen && (
-              <div className="absolute left-0 mt-1.5 w-44 rounded-xl border border-slate-800 bg-[#0d1424] p-1.5 shadow-2xl z-40">
-                <button
-                  type="button"
-                  onClick={onToggleVwap}
-                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
-                    showVwap ? "text-amber-400 font-semibold" : "text-slate-400"
-                  }`}
-                >
-                  <span>VWAP</span>
-                  {showVwap && <Check className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={onToggleEma}
-                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
-                    showEma ? "text-sky-400 font-semibold" : "text-slate-400"
-                  }`}
-                >
-                  <span>EMA 9 / 21</span>
-                  {showEma && <Check className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={onToggleDma}
-                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
-                    showDma ? "text-purple-400 font-semibold" : "text-slate-400"
-                  }`}
-                >
-                  <span>50 / 200 DMA</span>
-                  {showDma && <Check className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={onToggleVolume}
-                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition ${
-                    showVolume ? "text-slate-200 font-semibold" : "text-slate-400"
-                  }`}
-                >
-                  <span>Volume Bars</span>
-                  {showVolume && <Check className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => setIndicatorMenuOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:border-slate-700 hover:text-white transition shadow-sm"
+            title="Open Technical Indicators & Studies (22+ Indicators)"
+          >
+            <span className="font-mono text-sky-400 font-bold">fx</span>
+            <span>Indicators</span>
+            <span className="rounded-full bg-sky-500/25 px-1.5 py-0.2 font-mono text-[10px] text-sky-300">
+              {activeIndicatorIds.length}
+            </span>
+          </button>
 
           {/* Undo / Redo */}
           <div className="flex items-center gap-1">
@@ -770,6 +685,36 @@ export function ChartStudioModal({
                 </span>
               )}
             </div>
+
+            {/* Active Indicators Chips */}
+            {activeIndicatorIds.length > 0 && (
+              <div className="pointer-events-auto mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                {activeIndicatorIds.map((id) => {
+                  const def = INDICATOR_REGISTRY.find((i) => i.id === id);
+                  if (!def) return null;
+                  return (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1 rounded bg-slate-900/90 border border-slate-700/70 px-1.5 py-0.5 text-slate-200 shadow-sm"
+                    >
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: def.color }}
+                      />
+                      <span className="font-semibold">{def.shortName}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleIndicator(id)}
+                        className="text-slate-400 hover:text-rose-400 ml-0.5 font-bold"
+                        title={`Remove ${def.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Order Notice Toast */}
@@ -822,6 +767,16 @@ export function ChartStudioModal({
           <span className="text-emerald-400 font-semibold">AlgoCulture Studio</span>
         </div>
       </footer>
+
+      {/* 4. Full Technical Indicators Studies Dialog */}
+      <IndicatorsDialog
+        isOpen={indicatorMenuOpen}
+        onClose={() => setIndicatorMenuOpen(false)}
+        activeIndicatorIds={activeIndicatorIds}
+        onToggleIndicator={handleToggleIndicator}
+        onClearAll={handleClearAllIndicators}
+        onResetDefaults={handleResetDefaultIndicators}
+      />
     </div>
   );
 }

@@ -50,11 +50,14 @@ export function LiveQuoteHeader({
     );
   }
 
-  const isUp = quote.change >= 0;
-  const daySpan = quote.high - quote.low;
+  const changeVal = typeof quote.change === "number" ? quote.change : 0;
+  const isUp = changeVal >= 0;
+  const dayHigh = typeof quote.high === "number" ? quote.high : quote.ltp;
+  const dayLow = typeof quote.low === "number" ? quote.low : quote.ltp;
+  const daySpan = dayHigh - dayLow;
   const dayPct =
     daySpan > 0
-      ? Math.min(100, Math.max(0, ((quote.ltp - quote.low) / daySpan) * 100))
+      ? Math.min(100, Math.max(0, ((quote.ltp - dayLow) / daySpan) * 100))
       : 50;
 
   return (

@@ -55,7 +55,9 @@ export function MarketPulseBar({
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {pulse?.items.length ? (
             pulse.items.map((item) => {
-              const isUp = item.change >= 0;
+              const changeVal = typeof item.change === "number" ? item.change : 0;
+              const changePct = typeof item.change_pct === "number" ? item.change_pct : 0;
+              const isUp = changeVal >= 0;
               const isSelected = activeSymbol === item.symbol;
               return (
                 <button
@@ -80,7 +82,7 @@ export function MarketPulseBar({
                     }`}
                   >
                     {isUp ? "+" : ""}
-                    {item.change_pct.toFixed(2)}%
+                    {changePct.toFixed(2)}%
                   </span>
                 </button>
               );
