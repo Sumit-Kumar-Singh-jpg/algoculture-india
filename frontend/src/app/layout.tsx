@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "AlgoCulture India — Intraday, F&O & Long-Term Terminal",
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-[#090d16] text-slate-100 antialiased">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

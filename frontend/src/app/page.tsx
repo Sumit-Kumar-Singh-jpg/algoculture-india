@@ -30,6 +30,7 @@ import { StockChartCanvas } from "@/components/StockChartCanvas";
 import { FnoDerivativesPanel } from "@/components/FnoDerivativesPanel";
 import { AiPredictionCard } from "@/components/AiPredictionCard";
 import { StockNewsPanel } from "@/components/StockNewsPanel";
+import { UserNav } from "@/components/UserNav";
 
 const DEFAULT_WATCHLIST: WatchlistEntry[] = [
   { symbol: "NIFTY", name: "NIFTY 50 Index", exchange: "NSE" },
@@ -387,7 +388,10 @@ export default function HomePage() {
             </div>
           </div>
 
-          <StockSearchBar onSelect={handleSelectStock} />
+          <div className="flex items-center gap-3">
+            <StockSearchBar onSelect={handleSelectStock} />
+            <UserNav />
+          </div>
         </div>
       </header>
 
