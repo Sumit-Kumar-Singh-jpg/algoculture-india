@@ -31,18 +31,22 @@ export function UserNav() {
         <button
           type="button"
           onClick={() => openAuthModal("signin")}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition"
+          className="uiverse-btn uiverse-btn-signin"
         >
-          <LogIn className="h-3.5 w-3.5 text-sky-400" />
           <span>Sign In</span>
+          <div className="arrow-wrapper">
+            <div className="arrow" />
+          </div>
         </button>
         <button
           type="button"
           onClick={() => openAuthModal("signup")}
-          className="hidden sm:flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:from-sky-400 hover:to-indigo-500 transition"
+          className="uiverse-btn uiverse-btn-signup hidden sm:inline-flex"
         >
-          <User className="h-3.5 w-3.5" />
-          <span>Join Free</span>
+          <span>Sign Up</span>
+          <div className="arrow-wrapper">
+            <div className="arrow" />
+          </div>
         </button>
       </div>
     );

@@ -302,14 +302,16 @@ export function AuthModal() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 py-2.5 text-xs font-semibold text-white shadow-md hover:from-sky-400 hover:to-indigo-500 transition disabled:opacity-50"
+            className="mt-3 uiverse-btn uiverse-btn-submit disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
                 <span>{mode === "signin" ? "Sign In to Terminal" : "Create Account"}</span>
-                <ArrowRight className="h-4 w-4" />
+                <div className="arrow-wrapper">
+                  <div className="arrow" />
+                </div>
               </>
             )}
           </button>
