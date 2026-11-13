@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+import yfinance as yf
 
 from app.config import (
     PULSE_TTL_SECONDS,
@@ -68,7 +69,51 @@ def _last_valid(values: list[Any] | None) -> float | None:
 
 
 def _fetch_yahoo_chart_meta(yahoo_symbol: str) -> dict[str, Any]:
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    # 1. Try yfinance fast session fetch first to avoid 429
+    try:
+        t = yf.Ticker(yahoo_symbol)
+        df = t.history(period="5d", interval="1d")
+        if not df.empty and len(df) >= 1:
+            last_row = df.iloc[-1]
+            prev_close = float(df.iloc[-2]["Close"]) if len(df) >= 2 else float(last_row["Close"])
+            ltp = float(last_row["Close"])
+            high = float(last_row["High"])
+            low = float(last_row["Low"])
+            open_p = float(last_row["Open"])
+            volume = int(last_row["Volume"])
+
+            return {
+                "meta": {
+                    "regularMarketPrice": ltp,
+                    "previousClose": prev_close,
+                    "chartPreviousClose": prev_close,
+                    "regularMarketOpen": open_p,
+                    "regularMarketDayHigh": high,
+                    "regularMarketDayLow": low,
+                    "regularMarketVolume": volume,
+                    "symbol": yahoo_symbol,
+                },
+                "indicators": {
+                    "quote": [
+                        {
+                            "open": df["Open"].tolist(),
+                            "high": df["High"].tolist(),
+                            "low": df["Low"].tolist(),
+                            "close": df["Close"].tolist(),
+                            "volume": df["Volume"].tolist(),
+                        }
+                    ]
+                },
+            }
+    except Exception:
+        pass
+
+    # 2. Direct HTTP query fallback
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+        "Referer": "https://finance.yahoo.com",
+    }
     params = {"interval": "1d", "range": "5d"}
     with httpx.Client(timeout=8.0, headers=headers, follow_redirects=True) as client:
         resp = client.get(YAHOO_CHART_URL.format(symbol=yahoo_symbol), params=params)

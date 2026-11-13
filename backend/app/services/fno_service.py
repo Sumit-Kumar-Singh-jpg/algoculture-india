@@ -124,11 +124,15 @@ def _parse_nse_data(
     spot: float,
     selected_expiry: str | None = None,
 ) -> tuple[list[str], list[OptionStrikeItem], float, float, float]:
-    records = payload.get("records", {})
-    all_expiries: list[str] = records.get("expiryDates", [])
-    active_expiry = selected_expiry if selected_expiry in all_expiries else (all_expiries[0] if all_expiries else "")
+    records = payload.get("records") or {}
+    all_expiries: list[str] = records.get("expiryDates") or []
+    data_rows = records.get("data") or []
 
-    data_rows = records.get("data", [])
+    # If NSE returns an empty payload (bot block or market closed), raise to trigger fallback
+    if not data_rows or not all_expiries:
+        raise ValueError("Empty records from NSE option chain feed")
+
+    active_expiry = selected_expiry if selected_expiry in all_expiries else all_expiries[0]
     strikes_map: dict[float, OptionStrikeItem] = {}
 
     total_call_oi = 0
