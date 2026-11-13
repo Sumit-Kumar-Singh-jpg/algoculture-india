@@ -7,7 +7,7 @@ from app.config import CORS_ORIGINS
 from app.routers.market import router as market_router
 
 app = FastAPI(
-    title="PulseTrade India API",
+    title="AlgoCulture India API",
     version="0.1.0",
     description="NSE/BSE market quotes, multi-horizon charts, F&O analytics, AI forecasts, and Moneycontrol news API.",
 )

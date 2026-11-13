@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PulseTrade India — Intraday, F&O & Long-Term Terminal",
+  title: "AlgoCulture India — Intraday, F&O & Long-Term Terminal",
   description:
     "Live NSE/BSE charts, AI prediction forecasts, and Moneycontrol-powered stock news.",
 };

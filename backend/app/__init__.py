@@ -1,1 +1,1 @@
-# PulseTrade India backend package
+# AlgoCulture India backend package

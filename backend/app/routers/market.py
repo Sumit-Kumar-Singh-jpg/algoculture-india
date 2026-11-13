@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api", tags=["market"])
 def health_check() -> HealthResponse:
     return HealthResponse(
         status="ok",
-        service="pulsetrade-india-backend",
+        service="algoculture-india-backend",
         market_status=get_nse_market_status(),
     )
 

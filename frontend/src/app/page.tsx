@@ -79,7 +79,9 @@ export default function HomePage() {
   // Load watchlist from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("pulsetrade_watchlist");
+      const stored =
+        localStorage.getItem("algoculture_watchlist") ||
+        localStorage.getItem("pulsetrade_watchlist");
       if (stored) {
         const parsed = JSON.parse(stored) as WatchlistEntry[];
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -94,7 +96,7 @@ export default function HomePage() {
   function saveWatchlist(next: WatchlistEntry[]) {
     setWatchlist(next);
     try {
-      localStorage.setItem("pulsetrade_watchlist", JSON.stringify(next));
+      localStorage.setItem("algoculture_watchlist", JSON.stringify(next));
     } catch {
       // Ignore
     }
@@ -377,7 +379,7 @@ export default function HomePage() {
             </div>
             <div>
               <span className="text-base font-bold tracking-tight text-white">
-                PulseTrade <span className="text-sky-400">India</span>
+                AlgoCulture <span className="text-sky-400">India</span>
               </span>
               <span className="ml-2 hidden rounded bg-sky-950/80 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300 sm:inline-block">
                 NSE/BSE Terminal
@@ -646,7 +648,7 @@ export default function HomePage() {
               Analytical & educational platform. AI forecasts are statistical projections and not SEBI-registered financial advice.
             </span>
           </div>
-          <span>PulseTrade India v0.1.0</span>
+          <span>AlgoCulture India v0.1.0</span>
         </footer>
       </main>
     </div>
