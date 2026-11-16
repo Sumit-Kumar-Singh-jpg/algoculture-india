@@ -31,6 +31,17 @@ _quote_cache = ResilientTTLCache(maxsize=512, ttl=QUOTE_TTL_SECONDS)
 _pulse_cache = ResilientTTLCache(maxsize=8, ttl=PULSE_TTL_SECONDS)
 _search_cache = ResilientTTLCache(maxsize=256, ttl=SEARCH_TTL_SECONDS)
 
+_http_client = httpx.Client(
+    timeout=5.0,
+    headers={
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+        "Referer": "https://finance.yahoo.com",
+    },
+    limits=httpx.Limits(max_keepalive_connections=20, max_connections=40),
+    follow_redirects=True,
+)
+
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 YAHOO_SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
 
@@ -70,7 +81,21 @@ def _last_valid(values: list[Any] | None) -> float | None:
 
 
 def _fetch_yahoo_chart_meta(yahoo_symbol: str) -> dict[str, Any]:
-    # 1. Try yfinance fast session fetch first to avoid 429
+    # 1. Primary fast path: direct pooled HTTP query (~0.08s)
+    try:
+        params = {"interval": "1d", "range": "5d"}
+        resp = _http_client.get(YAHOO_CHART_URL.format(symbol=yahoo_symbol), params=params)
+        if resp.status_code == 200:
+            payload = resp.json()
+            results = payload.get("chart", {}).get("result")
+            if results and len(results) > 0:
+                meta = results[0].get("meta", {})
+                if meta.get("regularMarketPrice") is not None:
+                    return results[0]
+    except Exception:
+        pass
+
+    # 2. Secondary fallback: yfinance client
     try:
         t = yf.Ticker(yahoo_symbol)
         df = t.history(period="5d", interval="1d")
@@ -109,22 +134,7 @@ def _fetch_yahoo_chart_meta(yahoo_symbol: str) -> dict[str, Any]:
     except Exception:
         pass
 
-    # 2. Direct HTTP query fallback
-    headers = {
-        "User-Agent": USER_AGENT,
-        "Accept": "application/json",
-        "Referer": "https://finance.yahoo.com",
-    }
-    params = {"interval": "1d", "range": "5d"}
-    with httpx.Client(timeout=8.0, headers=headers, follow_redirects=True) as client:
-        resp = client.get(YAHOO_CHART_URL.format(symbol=yahoo_symbol), params=params)
-        resp.raise_for_status()
-        payload = resp.json()
-
-    results = payload.get("chart", {}).get("result")
-    if not results:
-        raise ValueError(f"No chart result returned for {yahoo_symbol}")
-    return results[0]
+    raise ValueError(f"No chart result returned for {yahoo_symbol}")
 
 
 def _parse_quote_from_chart(
@@ -274,7 +284,36 @@ def get_stock_quote(raw_symbol: str) -> StockQuoteResponse:
 
 
 def _fetch_remote_search(query: str) -> list[StockSearchItem]:
-    # Try yf.Search first (anti-429 session handling)
+    # 1. Primary fast path: direct pooled HTTP query (~0.1s)
+    try:
+        params = {"q": query, "quotesCount": 15, "newsCount": 0, "region": "IN"}
+        resp = _http_client.get(YAHOO_SEARCH_URL, params=params)
+        if resp.status_code == 200:
+            payload = resp.json()
+            items: list[StockSearchItem] = []
+            for quote in payload.get("quotes", []):
+                y_sym = str(quote.get("symbol") or "").upper()
+                if not (y_sym.endswith(".NS") or y_sym.endswith(".BO") or y_sym in {"^NSEI", "^NSEBANK", "^BSESN", "^INDIAVIX"}):
+                    continue
+                exchange = "BSE" if y_sym.endswith(".BO") else ("INDEX" if y_sym.startswith("^") else "NSE")
+                base_symbol = y_sym[:-3] if y_sym.endswith((".NS", ".BO")) else y_sym
+                items.append(
+                    StockSearchItem(
+                        symbol=y_sym if exchange == "BSE" else base_symbol,
+                        yahoo_symbol=y_sym,
+                        name=quote.get("longname") or quote.get("shortname") or base_symbol,
+                        exchange=exchange,
+                        sector=quote.get("sectorDisp") or quote.get("quoteType") or "Equity",
+                        is_fno=base_symbol in FNO_ELIGIBLE_SYMBOLS,
+                        is_index=y_sym.startswith("^"),
+                    )
+                )
+            if items:
+                return items
+    except Exception:
+        pass
+
+    # 2. Secondary fallback: yf.Search (anti-429 session handling)
     try:
         s = yf.Search(query, max_results=15)
         items: list[StockSearchItem] = []
@@ -300,33 +339,7 @@ def _fetch_remote_search(query: str) -> list[StockSearchItem]:
     except Exception:
         pass
 
-    # Direct query fallback
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-    params = {"q": query, "quotesCount": 15, "newsCount": 0, "region": "IN"}
-    with httpx.Client(timeout=5.0, headers=headers, follow_redirects=True) as client:
-        resp = client.get(YAHOO_SEARCH_URL, params=params)
-        resp.raise_for_status()
-        payload = resp.json()
-
-    items: list[StockSearchItem] = []
-    for quote in payload.get("quotes", []):
-        y_sym = str(quote.get("symbol") or "").upper()
-        if not (y_sym.endswith(".NS") or y_sym.endswith(".BO") or y_sym in {"^NSEI", "^NSEBANK", "^BSESN", "^INDIAVIX"}):
-            continue
-        exchange = "BSE" if y_sym.endswith(".BO") else ("INDEX" if y_sym.startswith("^") else "NSE")
-        base_symbol = y_sym[:-3] if y_sym.endswith((".NS", ".BO")) else y_sym
-        items.append(
-            StockSearchItem(
-                symbol=y_sym if exchange == "BSE" else base_symbol,
-                yahoo_symbol=y_sym,
-                name=quote.get("longname") or quote.get("shortname") or base_symbol,
-                exchange=exchange,
-                sector=quote.get("sectorDisp") or quote.get("quoteType") or "Equity",
-                is_fno=base_symbol in FNO_ELIGIBLE_SYMBOLS,
-                is_index=y_sym.startswith("^"),
-            )
-        )
-    return items
+    return []
 
 
 def search_stocks(query: str, limit: int = 15) -> list[StockSearchItem]:

@@ -25,6 +25,17 @@ from app.services.market_data import BENCHMARK_PRICES
 _intraday_history_cache = ResilientTTLCache(maxsize=256, ttl=HISTORY_INTRADAY_TTL_SECONDS)
 _longterm_history_cache = ResilientTTLCache(maxsize=256, ttl=HISTORY_TTL_SECONDS)
 
+_http_client = httpx.Client(
+    timeout=5.0,
+    headers={
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+        "Referer": "https://finance.yahoo.com",
+    },
+    limits=httpx.Limits(max_keepalive_connections=20, max_connections=40),
+    follow_redirects=True,
+)
+
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 
 INTERVAL_MAPPING = {
@@ -46,7 +57,21 @@ INTERVAL_MAPPING = {
 
 
 def _fetch_yahoo_ohlcv(yahoo_symbol: str, interval: str, period_range: str) -> dict[str, Any]:
-    # 1. First attempt: standard official yfinance client (handles cookies, crumbs, and anti-429 rotation)
+    # 1. Primary fast path: direct pooled HTTP query (~0.1s)
+    try:
+        params = {"interval": interval, "range": period_range, "includePrePost": "false"}
+        resp = _http_client.get(YAHOO_CHART_URL.format(symbol=yahoo_symbol), params=params)
+        if resp.status_code == 200:
+            payload = resp.json()
+            results = payload.get("chart", {}).get("result")
+            if results and len(results) > 0:
+                timestamps = results[0].get("timestamp") or []
+                if len(timestamps) >= 5:
+                    return results[0]
+    except Exception:
+        pass
+
+    # 2. Secondary fallback: official yfinance client (handles cookies and session rotation if direct blocked)
     try:
         ticker = yf.Ticker(yahoo_symbol)
         df_yf = ticker.history(period=period_range, interval=interval)
@@ -74,22 +99,7 @@ def _fetch_yahoo_ohlcv(yahoo_symbol: str, interval: str, period_range: str) -> d
     except Exception:
         pass
 
-    # 2. Second attempt: direct HTTP query
-    headers = {
-        "User-Agent": USER_AGENT,
-        "Accept": "application/json",
-        "Referer": "https://finance.yahoo.com",
-    }
-    params = {"interval": interval, "range": period_range, "includePrePost": "false"}
-    with httpx.Client(timeout=10.0, headers=headers, follow_redirects=True) as client:
-        resp = client.get(YAHOO_CHART_URL.format(symbol=yahoo_symbol), params=params)
-        resp.raise_for_status()
-        payload = resp.json()
-
-    results = payload.get("chart", {}).get("result")
-    if not results:
-        raise ValueError(f"No OHLCV history found for {yahoo_symbol}")
-    return results[0]
+    raise ValueError(f"No OHLCV history found for {yahoo_symbol}")
 
 
 def _compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
@@ -333,6 +343,42 @@ def get_stock_history(
 
         if not rows:
             raise ValueError(f"No valid OHLC candles returned for {canonical}")
+
+        # Real-time latest bar fusion: if live price/time is more recent than the last candle
+        meta = raw_chart.get("meta") or {}
+        regular_price = meta.get("regularMarketPrice")
+        regular_time = meta.get("regularMarketTime")
+
+        if (
+            resolved_mode == "intraday"
+            and rows
+            and regular_price is not None
+            and regular_time is not None
+        ):
+            step_sec = 60 if mapped_interval == "1m" else (900 if mapped_interval == "15m" else (3600 if mapped_interval == "60m" else 300))
+            last_candle_time = rows[-1]["time"]
+            reg_price_flt = round(float(regular_price), 2)
+            reg_time_int = int(regular_time)
+
+            if reg_time_int >= last_candle_time + step_sec:
+                # Append active forming bar for the latest slot
+                slot_time = (reg_time_int // step_sec) * step_sec
+                prev_close = rows[-1]["close"]
+                rows.append(
+                    {
+                        "time": slot_time,
+                        "open": prev_close,
+                        "high": max(prev_close, reg_price_flt),
+                        "low": min(prev_close, reg_price_flt),
+                        "close": reg_price_flt,
+                        "volume": 0,
+                    }
+                )
+            elif reg_time_int >= last_candle_time:
+                # Update current bar's close and high/low with latest live price
+                rows[-1]["close"] = reg_price_flt
+                rows[-1]["high"] = max(rows[-1]["high"], reg_price_flt)
+                rows[-1]["low"] = min(rows[-1]["low"], reg_price_flt)
 
         df = pd.DataFrame(rows)
         df = _compute_indicators(df)

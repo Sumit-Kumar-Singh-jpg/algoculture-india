@@ -282,6 +282,15 @@ export function StockChartCanvas({
         close: c.close,
       }));
 
+      const stepSec =
+        interval === "1m"
+          ? 60
+          : interval === "15m"
+            ? 900
+            : interval === "1h"
+              ? 3600
+              : 300;
+
       if (
         livePrice !== undefined &&
         typeof livePrice === "number" &&
@@ -290,9 +299,23 @@ export function StockChartCanvas({
         candleData.length > 0
       ) {
         const lastCandle = candleData[candleData.length - 1];
-        lastCandle.close = livePrice;
-        lastCandle.high = Math.max(lastCandle.high, livePrice);
-        lastCandle.low = Math.min(lastCandle.low, livePrice);
+        const lastTime = Number(lastCandle.time);
+        const nowSec = Math.floor(Date.now() / 1000);
+        const currentSlot = Math.floor(nowSec / stepSec) * stepSec;
+
+        if (currentSlot > lastTime && currentSlot - lastTime <= stepSec * 3) {
+          candleData.push({
+            time: currentSlot as Time,
+            open: lastCandle.close,
+            high: Math.max(lastCandle.close, livePrice),
+            low: Math.min(lastCandle.close, livePrice),
+            close: livePrice,
+          });
+        } else {
+          lastCandle.close = livePrice;
+          lastCandle.high = Math.max(lastCandle.high, livePrice);
+          lastCandle.low = Math.min(lastCandle.low, livePrice);
+        }
       }
 
       const isResetting =
@@ -540,7 +563,6 @@ export function StockChartCanvas({
     mode,
     symbol,
     interval,
-    livePrice,
     activeIndicatorIds,
     aiPredictionData,
     stopLossPrice,
@@ -565,16 +587,37 @@ export function StockChartCanvas({
       const last = candles[candles.length - 1];
       if (!last || typeof last.time !== "number" || !isFinite(last.time)) return;
 
-      const updatedHigh = Math.max(last.high, livePrice);
-      const updatedLow = Math.min(last.low, livePrice);
+      const stepSec =
+        interval === "1m"
+          ? 60
+          : interval === "15m"
+            ? 900
+            : interval === "1h"
+              ? 3600
+              : 300;
+      const lastTime = Number(last.time);
+      const nowSec = Math.floor(Date.now() / 1000);
+      const currentSlot = Math.floor(nowSec / stepSec) * stepSec;
 
-      candleSeries.update({
-        time: last.time as Time,
-        open: last.open,
-        high: updatedHigh,
-        low: updatedLow,
-        close: livePrice,
-      });
+      if (currentSlot > lastTime && currentSlot - lastTime <= stepSec * 3) {
+        candleSeries.update({
+          time: currentSlot as Time,
+          open: last.close,
+          high: Math.max(last.close, livePrice),
+          low: Math.min(last.close, livePrice),
+          close: livePrice,
+        });
+      } else {
+        const updatedHigh = Math.max(last.high, livePrice);
+        const updatedLow = Math.min(last.low, livePrice);
+        candleSeries.update({
+          time: last.time as Time,
+          open: last.open,
+          high: updatedHigh,
+          low: updatedLow,
+          close: livePrice,
+        });
+      }
 
       setLegend((prev) => ({
         ...prev,
@@ -585,7 +628,7 @@ export function StockChartCanvas({
     } catch (err) {
       console.warn("Live tick update notice:", err);
     }
-  }, [livePrice, candles, mode]);
+  }, [livePrice, candles, mode, interval]);
 
   return (
     <div className="relative w-full">

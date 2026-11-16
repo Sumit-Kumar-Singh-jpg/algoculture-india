@@ -336,7 +336,46 @@ export function ChartStudioModal({
     } catch (err) {
       console.warn("Studio chart render notice:", err);
     }
-  }, [candles, mode, livePrice, activeIndicatorIds, isOpen]);
+  }, [candles, mode, activeIndicatorIds, isOpen]);
+
+  // Live Price Tick Effect for Studio: updates the active candle bar in real-time without resetting zoom/drawings
+  useEffect(() => {
+    try {
+      const candleSeries = candleSeriesRef.current;
+      if (
+        !candleSeries ||
+        !livePrice ||
+        !Array.isArray(candles) ||
+        candles.length === 0 ||
+        mode !== "intraday" ||
+        !isOpen
+      ) {
+        return;
+      }
+      const last = candles[candles.length - 1];
+      if (!last || typeof last.time !== "number") return;
+
+      const updatedHigh = Math.max(last.high, livePrice);
+      const updatedLow = Math.min(last.low, livePrice);
+
+      candleSeries.update({
+        time: last.time as Time,
+        open: last.open,
+        high: updatedHigh,
+        low: updatedLow,
+        close: livePrice,
+      });
+
+      setLegend((prev) => ({
+        ...prev,
+        close: livePrice,
+        high: Math.max(prev.high ?? last.high, livePrice),
+        low: Math.min(prev.low ?? last.low, livePrice),
+      }));
+    } catch {
+      // Ignore tick error in modal
+    }
+  }, [livePrice, candles, mode, isOpen]);
 
   function handleUndo() {
     if (undoStack.length === 0) return;
