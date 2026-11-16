@@ -203,7 +203,9 @@ export function AiPredictionCard({
                   }`}
                 >
                   {hUp ? "+" : ""}
-                  {(h.expected_change_pct ?? 0).toFixed(1)}%
+                  {Math.abs(h.expected_change_pct ?? 0) < 0.1 && (h.expected_change_pct ?? 0) !== 0
+                    ? (h.expected_change_pct ?? 0).toFixed(2)
+                    : (h.expected_change_pct ?? 0).toFixed(1)}%
                 </span>
                 <span
                   className={`text-[8px] font-mono ${
@@ -223,13 +225,29 @@ export function AiPredictionCard({
       {/* Target Price & Stop Loss Dual Analytics Card */}
       <div className="grid grid-cols-2 gap-2.5">
         {/* Target Price Card */}
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-2.5">
+        <div
+          className={`rounded-lg border p-2.5 ${
+            isUp
+              ? "border-emerald-500/30 bg-emerald-950/20"
+              : "border-rose-500/30 bg-rose-950/20"
+          }`}
+        >
           <div className="flex items-center justify-between text-[11px]">
-            <span className="flex items-center gap-1 font-semibold text-emerald-300">
-              <Target className="h-3 w-3 text-emerald-400" />
-              Target Price
+            <span
+              className={`flex items-center gap-1 font-semibold ${
+                isUp ? "text-emerald-300" : "text-rose-300"
+              }`}
+            >
+              <Target
+                className={`h-3 w-3 ${isUp ? "text-emerald-400" : "text-rose-400"}`}
+              />
+              Target Price ({currentHorizonItem.direction ?? "AI"})
             </span>
-            <span className="font-mono text-[10px] font-semibold text-emerald-400">
+            <span
+              className={`font-mono text-[10px] font-semibold ${
+                isUp ? "text-emerald-400" : "text-rose-400"
+              }`}
+            >
               {isUp ? "+" : ""}
               {(currentHorizonItem.expected_change_pct ?? 0).toFixed(2)}%
             </span>
@@ -239,7 +257,11 @@ export function AiPredictionCard({
               {formatInr(targetPrice, false)}
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-300/80 font-mono">
+          <div
+            className={`mt-1 flex items-center gap-1 text-[10px] font-mono ${
+              isUp ? "text-emerald-300/80" : "text-rose-300/80"
+            }`}
+          >
             <span>Diff:</span>
             <span>
               {isUp ? "+" : ""}

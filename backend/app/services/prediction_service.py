@@ -22,55 +22,66 @@ from app.services.history_service import get_stock_history
 _predict_cache = ResilientTTLCache(maxsize=128, ttl=PREDICT_TTL_SECONDS)
 
 PREDICTED_HORIZONS = [
-    ("1m", "Next 1 Min", 60, 0.0015),
-    ("5m", "Next 5 Min", 300, 0.003),
-    ("30m", "Next 30 Min", 1800, 0.0065),
-    ("1h", "Next 1 Hr", 3600, 0.009),
-    ("1d", "Next 1 Day", 86400, 0.018),
-    ("5d", "Next 5 Days", 432000, 0.035),
+    ("1m", "Next 1 Min", 60),
+    ("5m", "Next 5 Min", 300),
+    ("30m", "Next 30 Min", 1800),
+    ("1h", "Next 1 Hr", 3600),
+    ("1d", "Next 1 Day", 86400),
+    ("5d", "Next 5 Days", 432000),
 ]
 
+HORIZON_BASE_MOVES = {
+    "1m": 0.0025,
+    "5m": 0.0055,
+    "30m": 0.0120,
+    "1h": 0.0185,
+    "1d": 0.0300,
+    "5d": 0.0600,
+}
+
 HORIZON_ACC_OFFSETS = {
-    "1m": +6.0,
+    "1m": +5.0,
     "5m": +2.0,
-    "30m": -2.0,
-    "1h": -5.0,
-    "1d": -9.0,
-    "5d": -13.0,
+    "30m": -1.0,
+    "1h": -4.0,
+    "1d": -8.0,
+    "5d": -12.0,
 }
 
 
 def _build_horizon_matrix(
     current_price: float,
     last_time: int,
-    base_model_return: float,
+    s_alpha: float,
     hist_vol: float,
+    v_mult: float,
     base_acc: float = 74.0,
 ) -> list[HorizonForecastItem]:
     items: list[HorizonForecastItem] = []
 
-    for hid, label, delta_sec, time_scale in PREDICTED_HORIZONS:
-        # Scale drift return based on horizon duration
-        step_drift = max(-0.06, min(0.06, base_model_return * math.sqrt(delta_sec / 300.0) * 0.7))
+    for hid, label, delta_sec in PREDICTED_HORIZONS:
+        base_move = HORIZON_BASE_MOVES.get(hid, 0.005)
+        # Scale drift return based on composite alpha momentum and volatility
+        step_drift = s_alpha * base_move * v_mult
         target = round(current_price * (1.0 + step_drift), 2)
         change = round(target - current_price, 2)
         change_pct = round((change / current_price) * 100, 2) if current_price > 0 else 0.0
 
-        if change_pct >= 0.15:
+        if change_pct >= 0.05:
             direction = "BULLISH"
-        elif change_pct <= -0.15:
+        elif change_pct <= -0.05:
             direction = "BEARISH"
         else:
             direction = "NEUTRAL"
 
-        vol_spread = max(0.002, hist_vol * math.sqrt(delta_sec / 300.0)) * current_price
+        vol_spread = max(0.003 * current_price, hist_vol * math.sqrt(delta_sec / 300.0) * current_price)
         l1 = round(max(0.1, target - vol_spread), 2)
         u1 = round(target + vol_spread, 2)
-        l2 = round(max(0.1, target - (vol_spread * 2.0)), 2)
-        u2 = round(target + (vol_spread * 2.0), 2)
+        l2 = round(max(0.1, target - (vol_spread * 1.85)), 2)
+        u2 = round(target + (vol_spread * 1.85), 2)
 
         # Stoploss and Risk-Reward computation
-        risk_buffer = max(0.003 * current_price, vol_spread * 0.85)
+        risk_buffer = max(0.004 * current_price, vol_spread * 0.75)
         if direction == "BULLISH":
             sl = round(max(0.05, current_price - risk_buffer), 2)
             sl_pct = round(((sl - current_price) / current_price) * 100, 2)
@@ -226,35 +237,56 @@ def get_stock_prediction(
         last_time = hist.candles[-1].time
         current_price = hist.candles[-1].close
 
-        # Multi-step autoregressive roll-forward with volatility cone expansion
-        curr_X = X[-1].copy()
-        running_price = current_price
+        # Compute Quant Institutional Multi-Factor Alpha Signal
+        close_prices = [c.close for c in hist.candles]
+        returns = np.diff(close_prices) / np.array(close_prices[:-1])
+        hist_vol = float(np.std(returns[-20:])) if len(returns) >= 20 else 0.0035
+        hist_vol = max(hist_vol, 0.001)
+
+        # 1. Technical bias factor (-1.0 to +1.0)
+        s_bias = float(hist.bias.score) if hist.bias and hist.bias.score is not None else 0.0
+
+        # 2. Multi-lag momentum factor (-1.0 to +1.0)
+        r3 = (close_prices[-1] - close_prices[-4]) / close_prices[-4] if len(close_prices) >= 4 else 0.0
+        r8 = (close_prices[-1] - close_prices[-9]) / close_prices[-9] if len(close_prices) >= 9 else 0.0
+        r20 = (close_prices[-1] - close_prices[-21]) / close_prices[-21] if len(close_prices) >= 21 else 0.0
+        r_mom = 0.50 * r3 + 0.30 * r8 + 0.20 * r20
+        s_mom = math.tanh(r_mom / max(0.001, hist_vol * 1.5))
+
+        # 3. ML factor from Ridge model (-1.0 to +1.0)
+        raw_ml = float(model.predict(X[-1].reshape(1, -1))[0])
+        s_ml = math.tanh(raw_ml / max(0.0005, hist_vol))
+
+        # Composite directional alpha
+        s_alpha = 0.45 * s_bias + 0.35 * s_mom + 0.20 * s_ml
+        s_alpha = max(-1.0, min(1.0, s_alpha))
+
+        # Volatility multiplier
+        v_mult = min(2.0, max(0.8, hist_vol / 0.0025))
 
         forecast_points: list[ForecastPoint] = []
+        base_step_move = 0.0022 if valid_mode == "intraday" else (0.008 if valid_mode == "fno" else 0.015)
+
         for step in range(1, steps + 1):
             next_t = last_time + (step * step_dt)
             iso = datetime.fromtimestamp(next_t, tz=timezone.utc).isoformat()
 
-            pred_return = float(model.predict(curr_X.reshape(1, -1))[0])
-            # Dampen compounding return to avoid extreme runaway forecasts
-            pred_return = max(-0.03, min(0.03, pred_return * 0.85))
+            step_drift = s_alpha * base_step_move * math.sqrt(step) * v_mult
+            pred_p = round(current_price * (1.0 + step_drift), 2)
 
-            running_price = round(running_price * (1.0 + pred_return), 2)
+            cone_1sigma = max(0.0025 * current_price, hist_vol * math.sqrt(step) * current_price)
+            cone_2sigma = cone_1sigma * 1.85
 
-            # Volatility cone grows with sqrt(t)
-            cone_1sigma = hist_vol * math.sqrt(step) * running_price
-            cone_2sigma = cone_1sigma * 2.0
-
-            lower_1 = round(max(0.1, running_price - cone_1sigma), 2)
-            upper_1 = round(running_price + cone_1sigma, 2)
-            lower_2 = round(max(0.1, running_price - cone_2sigma), 2)
-            upper_2 = round(running_price + cone_2sigma, 2)
+            lower_1 = round(max(0.1, pred_p - cone_1sigma), 2)
+            upper_1 = round(pred_p + cone_1sigma, 2)
+            lower_2 = round(max(0.1, pred_p - cone_2sigma), 2)
+            upper_2 = round(pred_p + cone_2sigma, 2)
 
             forecast_points.append(
                 ForecastPoint(
                     time=next_t,
                     time_iso=iso,
-                    predicted=running_price,
+                    predicted=pred_p,
                     lower_1sigma=lower_1,
                     upper_1sigma=upper_1,
                     lower_2sigma=lower_2,
@@ -262,16 +294,12 @@ def get_stock_prediction(
                 )
             )
 
-            # Shift feature window forward
-            curr_X = np.roll(curr_X, -1)
-            curr_X[-3] = pred_return
-
         target_price = forecast_points[-1].predicted
         exp_change_pct = round(((target_price - current_price) / current_price) * 100, 2)
 
-        if exp_change_pct >= 0.5:
+        if exp_change_pct >= 0.08:
             proj_dir = "BULLISH"
-        elif exp_change_pct <= -0.5:
+        elif exp_change_pct <= -0.08:
             proj_dir = "BEARISH"
         else:
             proj_dir = "NEUTRAL"
@@ -293,8 +321,14 @@ def get_stock_prediction(
         overall_rr = round(overall_reward / overall_risk, 2)
 
         # Generate multi-horizon forecasts: 1m, 5m, 30m, 1h, 1d, 5d
-        base_return = float(model.predict(X[-1].reshape(1, -1))[0])
-        horizons_list = _build_horizon_matrix(current_price, last_time, base_return, hist_vol, base_acc=dir_acc)
+        horizons_list = _build_horizon_matrix(
+            current_price=current_price,
+            last_time=last_time,
+            s_alpha=s_alpha,
+            hist_vol=hist_vol,
+            v_mult=v_mult,
+            base_acc=dir_acc,
+        )
 
         conf_grade = "HIGH" if dir_acc >= 70.0 else ("MODERATE" if dir_acc >= 58.0 else "SPECULATIVE")
 
