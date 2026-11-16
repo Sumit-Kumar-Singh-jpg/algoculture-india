@@ -6,7 +6,7 @@ import type {
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:8000";
+  (typeof window !== "undefined" ? "" : "http://127.0.0.1:8000");
 
 async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
